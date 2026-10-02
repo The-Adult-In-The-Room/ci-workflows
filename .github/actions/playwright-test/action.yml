@@ -1,0 +1,34 @@
+name: Playwright Test
+description: Install Lightpanda and run a Playwright e2e test suite.
+
+inputs:
+  command:
+    description: The npm script to run (e.g. test:e2e:acceptance).
+    required: true
+  artifact-retention-days:
+    description: Number of days to keep failure artifacts.
+    required: false
+    default: "7"
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-node
+
+    - name: Install Lightpanda
+      run: npx lightpanda install
+      shell: bash
+
+    - name: Run e2e tests
+      run: npm run ${{ inputs.command }}
+      shell: bash
+
+    - uses: actions/upload-artifact@v7
+      if: failure()
+      with:
+        name: playwright-report-${{ inputs.command }}
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: ${{ fromJson(inputs.artifact-retention-days) }}
+        if-no-files-found: ignore

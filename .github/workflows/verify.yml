@@ -1,0 +1,54 @@
+name: Verify
+
+on:
+  workflow_call:
+    inputs:
+      node-version-file:
+        description: Path to the Node version file.
+        required: false
+        type: string
+        default: .nvmrc
+      verify-command:
+        description: Command that runs typecheck, lint, format, and unit tests.
+        required: false
+        type: string
+        default: npm run verify
+      acceptance-command:
+        description: npm script for acceptance e2e tests.
+        required: false
+        type: string
+        default: npm run test:e2e:acceptance
+
+jobs:
+  lint-and-test:
+    name: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+      - run: ${{ inputs.verify-command }}
+
+  acceptance:
+    name: acceptance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@main
+        with:
+          command: ${{ inputs.acceptance-command }}
+
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, acceptance]
+    if: always()
+    steps:
+      - name: Require all verify jobs to pass
+        if: ${{ needs.lint-and-test.result != 'success' || needs.acceptance.result != 'success' }}
+        run: |
+          echo "lint-and-test result: ${{ needs.lint-and-test.result }}"
+          echo "acceptance result: ${{ needs.acceptance.result }}"
+          exit 1
+      - run: echo "Verify workflow passed."

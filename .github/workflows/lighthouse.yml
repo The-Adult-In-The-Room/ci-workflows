@@ -1,0 +1,50 @@
+name: Lighthouse
+
+on:
+  workflow_call:
+    inputs:
+      node-version-file:
+        description: Path to the Node version file.
+        required: false
+        type: string
+        default: .nvmrc
+      build-command:
+        description: Command that produces a production build.
+        required: false
+        type: string
+        default: npm run build
+      lhci-version:
+        description: Version range of @lhci/cli to install globally.
+        required: false
+        type: string
+        default: "0.15.x"
+      lhci-command:
+        description: Command that runs Lighthouse CI.
+        required: false
+        type: string
+        default: npx lhci autorun
+    secrets:
+      lhci-github-app-token:
+        description: Token for the Lighthouse CI GitHub app.
+        required: true
+
+jobs:
+  lhci:
+    name: lighthouse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+
+      - name: Build
+        run: ${{ inputs.build-command }}
+
+      - name: Run Lighthouse CI
+        run: ${{ inputs.lhci-command }}
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.lhci-github-app-token }}

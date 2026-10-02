@@ -1,0 +1,22 @@
+name: Setup Node
+description: Set up Node.js from an .nvmrc file and install dependencies.
+
+inputs:
+  node-version-file:
+    description: Path to the Node version file.
+    required: false
+    default: .nvmrc
+  install-command:
+    description: Command used to install dependencies.
+    required: false
+    default: npm ci
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: npm
+    - run: ${{ inputs.install-command }}
+      shell: bash
