@@ -17,7 +17,7 @@ on:
         description: npm script for acceptance e2e tests.
         required: false
         type: string
-        default: npm run test:e2e:acceptance
+        default: test:e2e:acceptance
 
 jobs:
   lint-and-test:
