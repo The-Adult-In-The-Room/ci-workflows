@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # This repository is where every third-party GitHub Action dependency now
+  # lives. Consumers (blog, portfolio, poe2-tools) reference the reusable
+  # workflows and have no direct action dependencies of their own.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Self-references are pinned deliberately and bumped in the same commit
+      # that cuts a new tag. Dependabot must never touch them — an automatic
+      # bump would point at a tag that does not exist yet and break every
+      # consumer pinned to the current release.
+      - dependency-name: "The-Adult-In-The-Room/ci-workflows*"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
