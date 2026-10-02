@@ -42,6 +42,6 @@ jobs:
             exit 1
           fi
 
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@main
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@v1.0.0
         with:
           command: ${{ inputs.command }}
