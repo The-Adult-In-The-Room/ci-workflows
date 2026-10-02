@@ -16,4 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: rhysd/actionlint@v1
+      # rhysd/actionlint publishes only vX.Y.Z tags, with no floating `v1`
+      # ref, so this must stay pinned to an exact version.
+      - uses: rhysd/actionlint@v1.7.12
