@@ -13,7 +13,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-node
+    - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@main
 
     - name: Install Lightpanda
       run: npx lightpanda install
