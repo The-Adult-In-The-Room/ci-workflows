@@ -1,0 +1,18 @@
+# A typo in an input reference. `${{ inputs.comand }}` is not an error GitHub
+# reports — it evaluates to an empty string, so the command runs as `npm run `
+# and fails with a confusing message. Expected: rule 3.
+name: Smoke Tests
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: npm script that runs the smoke e2e suite.
+        required: false
+        type: string
+        default: test:e2e:smoke
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run ${{ inputs.comand }}

@@ -34,6 +34,23 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 
 Use `CI / verify` in branch protection and in the Dependabot auto-merger so the entire PR verification workflow must pass before merging.
 
+## Self-check
+
+This repository gates its own changes with `Self Check`, which runs two independently-required jobs:
+
+| Check | What it enforces |
+| --- | --- |
+| `lint` | `actionlint` — the workflows and actions are structurally valid YAML. |
+| `contract` | `scripts/contract-check.mjs` — the *interface* to consumers holds up. |
+
+`actionlint` cannot see the bugs that actually cost us consumers, because each one was valid YAML with a broken contract: a composite action referencing a sibling by relative path, `npm run ${{ inputs.command }}` where the default was a whole command, a required secret with no description. `contract` covers those five rules.
+
+The check names `lint` and `contract` are stable and will not be reworded. Once a ruleset requires a check by name, renaming a job breaks every open PR and every branch-protection entry. Treat any change here as a breaking change.
+
+Run either locally with `npm test` and `npm run contract`; `contract` also accepts explicit paths, e.g. `node scripts/contract-check.mjs .github/workflows/verify.yml`.
+
+The rules are unit-tested against deliberately broken fixtures in `scripts/fixtures/`, one per historical bug. `npm test` also asserts that the real workflows satisfy every rule, so a rule that becomes too aggressive fails here rather than in someone's PR.
+
 ## Usage
 
 ```yaml

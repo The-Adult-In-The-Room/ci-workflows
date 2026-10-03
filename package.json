@@ -1,0 +1,17 @@
+{
+  "name": "ci-workflows",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tooling for validating this repository's own CI contracts. Not published; the published artifact is the workflows and composite actions under .github/.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "contract": "node scripts/contract-check.mjs",
+    "test": "node --test \"scripts/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
+  }
+}

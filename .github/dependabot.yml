@@ -17,3 +17,14 @@ updates:
       github-actions:
         patterns:
           - "*"
+  # `yaml` is the parser behind scripts/contract-check.mjs, the `contract` gate.
+  # It is a dev-only dependency of this repository's own tooling — consumers of
+  # the workflows and actions never install it.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-dev-dependencies:
+        patterns:
+          - "*"

@@ -1,0 +1,24 @@
+# Bug 4 — a floating ref that never resolves.
+#
+# `rhysd/actionlint@v1` failed at "Prepare all required actions" rather than at
+# review time, because that repo publishes only `vX.Y.Z` tags. Rule 2 does not
+# police third-party refs — Dependabot owns those, and a floating major tag is a
+# deliberate choice elsewhere — so the line below is *not* flagged. What rule 2
+# does police is this repo's own reference drifting onto a branch, which would
+# silently diverge every consumer pinned to the current release.
+# Expected: rule 2, on the self-reference only.
+name: Self Check
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: rhysd/actionlint@v1
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/contract.yml@main

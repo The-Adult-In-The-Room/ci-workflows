@@ -1,0 +1,20 @@
+# Bug 2 — a whole command used where a bare script name was expected.
+#
+# `npm run ${{ inputs.command }}` with a default that already contains
+# `npm run` expands to `npm run npm run test:e2e:acceptance`.
+# Expected: rule 4.
+name: Acceptance
+on:
+  workflow_call:
+    inputs:
+      acceptance-command:
+        description: npm script for acceptance e2e tests.
+        required: false
+        type: string
+        default: npm run test:e2e:acceptance
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run ${{ inputs.acceptance-command }}
