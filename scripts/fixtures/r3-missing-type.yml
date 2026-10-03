@@ -1,0 +1,18 @@
+# A workflow_call input with no `type`. GitHub rejects the workflow at parse
+# time, so this is really a YAML-schema gap actionlint should own — but a
+# missing type also means no default coercion, which is a contract problem.
+# Expected: rule 3.
+name: Smoke Tests
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: npm script that runs the smoke e2e suite.
+        required: false
+        default: test:e2e:smoke
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run ${{ inputs.command }}

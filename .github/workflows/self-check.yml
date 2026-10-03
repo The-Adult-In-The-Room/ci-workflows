@@ -10,12 +10,31 @@ on:
 permissions:
   contents: read
 
+# Job ids are the check names, and they are deliberately bare. Once a ruleset
+# requires a check by name, renaming a job breaks every open PR and every
+# branch-protection entry until both are updated in the same breath. Do not add
+# a `name:` override here without treating it as a breaking change.
 jobs:
   lint:
-    name: Lint workflows and actions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # rhysd/actionlint publishes only vX.Y.Z tags, with no floating `v1`
       # ref, so this must stay pinned to an exact version.
       - uses: rhysd/actionlint@v1.7.12
+
+  # actionlint checks that the YAML is structurally valid. It cannot see the
+  # interface bugs that actually reach consumers, so `contract` checks those.
+  # See issue #3. `yaml` is the only dependency; `npm ci` installs nothing else.
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci
+      # The rules are themselves regression-tested, so a rule cannot silently
+      # widen into its neighbours or stop catching its bug.
+      - run: npm test
+      - run: npm run contract

@@ -1,0 +1,13 @@
+# Bug 1 — a composite action referencing a sibling action by relative path.
+#
+# This resolves against the *consumer's* workspace, not this repo, so it only
+# fails when a downstream consumer calls it. Expected: rule 1.
+name: Setup Node
+description: Reproduces the relative-uses bug.
+
+runs:
+  using: composite
+  steps:
+    - uses: ./setup-node
+    - run: npm ci
+      shell: bash

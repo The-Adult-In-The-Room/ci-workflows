@@ -1,0 +1,55 @@
+# Everything the rules must NOT flag.
+#
+# If this file ever reports a violation, a rule has become too aggressive and is
+# about to reject a correct workflow. It deliberately contains every
+# suspicious-looking-but-legal shape the checker sees:
+#
+#   - a relative `uses:` in a workflow job (legal: same repo, unlike bug 1)
+#   - a self-reference at an exact tag and at a full SHA
+#   - third-party actions on floating major tags and exact tags
+#   - a required input with no default, used in a `run:` (the shape bug 3's fix
+#     has to keep legal — see the note on rule 3 in contract-check.mjs)
+#   - a bare script name spliced after `npm run`
+#   - a whole command including `npm run`, spliced without a literal prefix
+#   - a documented required secret
+name: Allowed
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: npm script that runs the smoke e2e suite.
+        required: false
+        type: string
+        default: test:e2e:smoke
+      build-command:
+        description: Command that produces a production build.
+        required: false
+        type: string
+        default: npm run build
+      token:
+        description: Passed straight through to a required step.
+        required: true
+        type: string
+    secrets:
+      lhci-github-app-token:
+        description: Token for the Lighthouse CI GitHub app.
+        required: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+      - uses: rhysd/actionlint@v1.7.12
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v1.0.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@0123456789abcdef0123456789abcdef01234567
+      - run: npm run ${{ inputs.command }}
+      - run: ${{ inputs.build-command }}
+      - run: echo ${{ inputs.token }}
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # Legal in a workflow: resolves inside this repo, not the consumer's.
+      - uses: ./.github/workflows/self-check.yml
