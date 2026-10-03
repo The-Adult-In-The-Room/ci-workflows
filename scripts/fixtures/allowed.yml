@@ -12,6 +12,9 @@
 #   - a bare script name spliced after `npm run`
 #   - a whole command including `npm run`, spliced without a literal prefix
 #   - a documented required secret
+#   - an artifact name derived in a step and read from `steps.*.outputs.*`,
+#     which is rule 6's fix for bug 5 and must stay legal
+#   - a literal artifact name with no interpolation at all
 name: Allowed
 on:
   workflow_call:
@@ -47,6 +50,24 @@ jobs:
       - run: npm run ${{ inputs.command }}
       - run: ${{ inputs.build-command }}
       - run: echo ${{ inputs.token }}
+
+      # Legal: the command reaches a step, and the step derives an
+      # artifact-safe name from it. Rule 6 flags `inputs.*` in the *name*,
+      # never in the derivation.
+      - name: Build artifact name
+        id: artifact
+        run: echo "name=playwright-report-${COMMAND//[^A-Za-z0-9._-]/-}" >> "$GITHUB_OUTPUT"
+        env:
+          COMMAND: ${{ inputs.command }}
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: playwright-report/
+      # Legal: no interpolation, so nothing can be invalid.
+      - uses: actions/download-artifact@v7
+        with:
+          name: playwright-report
 
   lint:
     runs-on: ubuntu-latest

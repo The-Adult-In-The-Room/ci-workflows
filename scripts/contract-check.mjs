@@ -14,8 +14,11 @@
 //     `secrets: inherit` and it does not work
 //   - `@v1` on a repo that only publishes `vX.Y.Z`, which fails at
 //     "Prepare all required actions" rather than at review time
+//   - an artifact name interpolated straight from an input, where upload-artifact
+//     rejects the `:` in a colon-delimited npm script name — and only on a
+//     failing run, because the upload is `if: failure()`
 //
-// So: static analysis over `.github/**`, five rules, every violation reported
+// So: static analysis over `.github/**`, six rules, every violation reported
 // with a file and line. Deliberately not a runtime test — see issue #5.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs'
@@ -34,6 +37,11 @@ const SHA_REF = /^[0-9a-f]{40}$/
 const SEMVER_TAG = /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/
 
 const SKIP_DIRS = new Set(['node_modules', '.git'])
+
+// Actions whose `name` input upload-artifact/download-artifact require to be
+// filesystem-agnostic. Matched on owner/repo, so a pinned or floating tag is
+// irrelevant — the constraint is the action's, not the ref's.
+const ARTIFACT_ACTIONS = new Set(['actions/upload-artifact', 'actions/download-artifact'])
 
 // A `${{ … }}` expression, and the `inputs.` references inside one. The
 // lookbehind keeps `github.event.inputs.foo` from being read as a reference to a
@@ -149,6 +157,23 @@ const describe = (input) =>
   input.hasDefault ? `default ${JSON.stringify(input.defaultValue)}` : 'no default'
 
 /**
+ * Every step in the document, with its path. Workflow steps hang off each job;
+ * a composite action has a single `runs.steps` list instead.
+ */
+function collectSteps(root) {
+  const steps = []
+  for (const [jobName, job] of Object.entries(root?.jobs ?? {})) {
+    for (const [index, step] of (Array.isArray(job?.steps) ? job.steps : []).entries()) {
+      if (isPlainObject(step)) steps.push({ step, path: ['jobs', jobName, 'steps', index] })
+    }
+  }
+  for (const [index, step] of (Array.isArray(root?.runs?.steps) ? root.runs.steps : []).entries()) {
+    if (isPlainObject(step)) steps.push({ step, path: ['runs', 'steps', index] })
+  }
+  return steps
+}
+
+/**
  * Checks one YAML document. Returns a flat list of violations, each carrying
  * the rule id, message, and source position.
  */
@@ -163,9 +188,13 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
     violations.push({ file, rule, message, line, column })
   }
 
-  // A file we cannot parse would otherwise pass every rule vacuously. actionlint
-  // catches this for .github/workflows and .github/actions, but not for a
-  // malformed file that never gets that far.
+  // A file we cannot parse would otherwise pass every rule vacuously.
+  //
+  // These rules are therefore the *only* structural check the composite actions
+  // under `.github/actions` get: actionlint is a workflow linter, and in
+  // project mode it collects only `.github/workflows/*.yml`. Verified with
+  // actionlint v1.7.12 — it reports nothing for a malformed `action.yml`, and
+  // given one directly it parses it as a workflow and emits nonsense.
   for (const error of doc.errors) {
     const { line, column } = positionAt(error.pos?.[0] ?? 0)
     violations.push({
@@ -300,6 +329,41 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
         `required secret \`${secret.name}\` has no \`description\`, so consumers cannot tell what to pass`,
         secret.path,
       )
+    }
+  }
+
+  // Rule 6 — artifact names must not interpolate an input.
+  //
+  // `upload-artifact` rejects `" : < > | * ? \r \n \ /` in a name outright,
+  // because downloads land on NTFS volumes where those are path separators or
+  // reserved characters. Whether an input carries one is unknowable at review
+  // time — `test:e2e:regression` is a perfectly good npm script name and an
+  // invalid artifact name — so the only sound rule is that an input must not
+  // reach the name unchecked.
+  //
+  // Note this bites hardest exactly when it is least visible: the upload is
+  // `if: failure()`, so a green run never evaluates the name and the contract
+  // only breaks on the run where someone needs the report.
+  //
+  // The fix is to derive the name in a step and forward the *output*, which is
+  // the one value this document controls. `steps.*.outputs.*` is therefore
+  // allowed, and `inputs.*` is not.
+  for (const { step, path } of collectSteps(root)) {
+    if (typeof step.uses !== 'string') continue
+    const ownerRepo = step.uses.split('@')[0]
+    if (!ARTIFACT_ACTIONS.has(ownerRepo)) continue
+
+    const name = step.with?.name
+    if (typeof name !== 'string') continue
+
+    for (const expression of name.matchAll(EXPRESSION)) {
+      for (const input of inputReferences(expression[1])) {
+        report(
+          'artifact-name-safety',
+          `artifact name interpolates \`inputs.${input}\`, whose runtime value cannot be checked against the characters upload-artifact rejects (" : < > | * ? \\r \\n \\ /); derive a sanitised name in a step and pass \`steps.<id>.outputs.<name>\` instead`,
+          [...path, 'with', 'name'],
+        )
+      }
     }
   }
 
