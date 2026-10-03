@@ -64,7 +64,7 @@ on:
 jobs:
   verify:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v1.0.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v1.0.1
 ```
 
 Replace `The-Adult-In-The-Room/ci-workflows` with the actual owner/repo if you fork or rename this repository.
@@ -75,7 +75,7 @@ Consumers pin to an **immutable semver tag**, never a branch. Tags are not moved
 
 | Change | Action |
 | --- | --- |
-| Backwards-compatible fix or new optional input with a default | Cut a new patch/minor tag, e.g. `v1.0.1` |
+| Backwards-compatible fix or new optional input with a default | Cut a new patch/minor tag, e.g. `v1.0.2` |
 | Breaking change (renamed/removed input, changed default, renamed check) | Cut `v2.0.0`; consumers opt in via a reviewed PR |
 | Internal-only change (comments, docs) | Push to `main`, cut a tag when convenient |
 
