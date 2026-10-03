@@ -11,6 +11,8 @@ All e2e jobs use [Lightpanda](https://github.com/lightpanda-io/browser) for fast
 | `setup-node` | `.github/actions/setup-node` | Install Node.js from `.nvmrc` and run `npm ci`. |
 | `playwright-test` | `.github/actions/playwright-test` | Install Lightpanda and run a Playwright e2e npm script. |
 
+On failure `playwright-test` uploads a `playwright-report` artifact named `playwright-report-<script>`, with every character `upload-artifact` rejects (`" : < > | * ? \r \n \ /`) rewritten to `-`. So `test:e2e:regression` uploads as `playwright-report-test-e2e-regression` — the colon has to go, because artifacts are downloaded onto NTFS volumes where it is a path separator.
+
 ## Reusable workflows
 
 | Workflow | Path | Purpose |
@@ -43,7 +45,7 @@ This repository gates its own changes with `Self Check`, which runs two independ
 | `lint` | `actionlint` — the workflows and actions are structurally valid YAML. |
 | `contract` | `scripts/contract-check.mjs` — the *interface* to consumers holds up. |
 
-`actionlint` cannot see the bugs that actually cost us consumers, because each one was valid YAML with a broken contract: a composite action referencing a sibling by relative path, `npm run ${{ inputs.command }}` where the default was a whole command, a required secret with no description. `contract` covers those five rules.
+`actionlint` cannot see the bugs that actually cost us consumers, because each one was valid YAML with a broken contract: a composite action referencing a sibling by relative path, `npm run ${{ inputs.command }}` where the default was a whole command, a required secret with no description, an artifact name interpolated from an input where the `:` in `test:e2e:regression` is an invalid artifact-name character. `contract` covers those six rules.
 
 The check names `lint` and `contract` are stable and will not be reworded. Once a ruleset requires a check by name, renaming a job breaks every open PR and every branch-protection entry. Treat any change here as a breaking change.
 

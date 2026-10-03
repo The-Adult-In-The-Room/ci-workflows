@@ -1,0 +1,29 @@
+# Bug 5 — an artifact name built straight from an input.
+#
+# `upload-artifact` rejects `" : < > | * ? \r \n \ /` in an artifact name,
+# because downloads land on NTFS volumes where those are path separators or
+# reserved characters. npm script names are colon-delimited by convention, so
+# `playwright-report-${{ inputs.command }}` expanded to
+# `playwright-report-test:e2e:regression` and the upload failed — in a
+# *consumer's* repo, not here, and only on a failing run, because the upload
+# step is `if: failure()`.
+#
+# The step below is `steps.*.outputs.*`-free on purpose: it is the shape that
+# broke. The fixed action derives the name in a step instead, and that shape is
+# covered by allowed.yml. Expected: rule 6.
+name: Playwright Test
+description: Reproduces the invalid-artifact-name bug.
+
+inputs:
+  command:
+    description: The npm script to run (e.g. test:e2e:acceptance).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/upload-artifact@v7
+      if: failure()
+      with:
+        name: playwright-report-${{ inputs.command }}
+        path: playwright-report/

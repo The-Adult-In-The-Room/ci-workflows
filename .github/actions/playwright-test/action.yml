@@ -23,10 +23,29 @@ runs:
       run: npm run ${{ inputs.command }}
       shell: bash
 
+    # Artifact names must be filesystem-agnostic: upload-artifact rejects
+    # " : < > | * ? \r \n \ / outright, because downloads land on NTFS volumes
+    # where those are path separators or reserved characters. `inputs.command`
+    # is an npm script name, and npm script names are colon-delimited by
+    # convention — `test:e2e:regression` — so interpolating it verbatim built
+    # the invalid name `playwright-report-test:e2e:regression` and the upload
+    # failed. Because this step is `if: failure()`, the bug stayed invisible
+    # until a suite actually failed, which is exactly when the report matters.
+    #
+    # The command is passed through `env:` rather than interpolated into the
+    # script body, so a consumer-supplied value cannot inject shell syntax.
+    - name: Build artifact name
+      id: artifact
+      if: failure()
+      run: echo "name=playwright-report-${COMMAND//[^A-Za-z0-9._-]/-}" >> "$GITHUB_OUTPUT"
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+
     - uses: actions/upload-artifact@v7
       if: failure()
       with:
-        name: playwright-report-${{ inputs.command }}
+        name: ${{ steps.artifact.outputs.name }}
         path: |
           playwright-report/
           test-results/

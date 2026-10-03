@@ -24,6 +24,7 @@ const EXPECTED = {
   'bug-2-double-npm-run.yml': ['script-name-discipline'],
   'bug-3-undocumented-secret.yml': ['required-secrets-documented'],
   'bug-4-floating-ref.yml': ['no-branch-refs-for-self-references'],
+  'bug-5-colon-artifact-name.yml': ['artifact-name-safety'],
   'r3-missing-type.yml': ['input-completeness'],
   'r3-omittable-input.yml': ['input-completeness'],
   'r3-undeclared-input.yml': ['input-completeness'],
@@ -127,5 +128,45 @@ describe('input resolution', () => {
       violations.map((violation) => violation.rule),
       ['script-name-discipline'],
     )
+  })
+})
+
+describe('artifact names', () => {
+  const artifactWorkflow = (uses, name) =>
+    `on:\n  workflow_call:\n    inputs:\n      command:\n        type: string\n        default: test:e2e:smoke\njobs:\n  j:\n    steps:\n      - uses: ${uses}\n        with:\n          name: ${name}\n`
+
+  // The constraint belongs to the action, not the ref, so the rule must not
+  // depend on which tag a consumer happens to be pinned to.
+  it('flags an input in an artifact name, whatever the ref', () => {
+    for (const uses of [
+      'actions/upload-artifact@v7',
+      'actions/upload-artifact@v4',
+      'actions/download-artifact@v7',
+    ]) {
+      const violations = analyzeSource(artifactWorkflow(uses, 'report-${{ inputs.command }}'))
+      assert.deepEqual(
+        violations.map((violation) => violation.rule),
+        ['artifact-name-safety'],
+        uses,
+      )
+    }
+  })
+
+  it('allows a name derived from a step output', () => {
+    // Rule 6's own fix: sanitise in a step, forward the output. If this ever
+    // fails, the rule has started rejecting the shape it exists to recommend.
+    const violations = analyzeSource(
+      artifactWorkflow('actions/upload-artifact@v7', '${{ steps.artifact.outputs.name }}'),
+    )
+    assert.deepEqual(violations, [])
+  })
+
+  it('ignores the name input of an action that is not an artifact action', () => {
+    // Many actions take an innocuous `name`. Keying off the key rather than the
+    // action would flag all of them.
+    const violations = analyzeSource(
+      artifactWorkflow('actions/cache@v4', 'npm-${{ inputs.command }}'),
+    )
+    assert.deepEqual(violations, [])
   })
 })
