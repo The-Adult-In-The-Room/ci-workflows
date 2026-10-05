@@ -10,7 +10,7 @@ Any change here propagates, via immutable semver tags, to every consumer. Treat 
 
 ## Core principles
 
-1. **Consumers pin to immutable semver tags, never branches.** A consumer reference looks like `The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v1.0.1`.
+1. **Consumers pin to immutable semver tags, never branches.** A consumer reference looks like `The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.0.0`.
 2. **Internal self-references inside this repo must also be immutable tags or SHAs.** When cutting a release, update all `The-Adult-In-The-Room/ci-workflows/…@<tag>` refs in the same commit.
 3. **Check names are a public API.** Keep them stable once consumers depend on them: `CI / lint-and-test`, `CI / acceptance`, `CI / verify`, `CI / smoke`, `CI / regression`, `CI / lighthouse`.
 4. **Composite actions must never use relative `uses:` paths.** They run in the consumer's checkout, so `uses: ./...` resolves against the wrong repo.
@@ -40,7 +40,7 @@ All e2e jobs use [Lightpanda](https://github.com/lightpanda-io/browser) for fast
 |------|------|------|---------|
 | Composite action | `setup-node` | `.github/actions/setup-node` | Install Node.js from `.nvmrc` and run `npm ci`. |
 | Composite action | `playwright-test` | `.github/actions/playwright-test` | Install Lightpanda and run a Playwright e2e npm script. |
-| Reusable workflow | `verify` | `.github/workflows/verify.yml` | PR gate: lint/test + acceptance e2e. |
+| Reusable workflow | `verify` | `.github/workflows/verify.yml` | PR gate: lint/test + acceptance e2e + optional Lighthouse CI. |
 | Reusable workflow | `smoke` | `.github/workflows/smoke.yml` | Post-merge smoke e2e tests. |
 | Reusable workflow | `regression` | `.github/workflows/regression.yml` | Scheduled regression tests against a production URL. |
 | Reusable workflow | `dependabot-auto-merge` | `.github/workflows/dependabot-auto-merge.yml` | Auto-merge Dependabot PRs after `CI / verify` passes. |

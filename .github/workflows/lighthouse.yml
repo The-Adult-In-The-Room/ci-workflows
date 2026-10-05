@@ -37,7 +37,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v1.0.1
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.0.0
         with:
           node-version-file: ${{ inputs.node-version-file }}
 

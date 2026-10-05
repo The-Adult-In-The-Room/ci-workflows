@@ -17,7 +17,7 @@ On failure `playwright-test` uploads a `playwright-report` artifact named `playw
 
 | Workflow | Path | Purpose |
 | --- | --- | --- |
-| `verify` | `.github/workflows/verify.yml` | PR gate: typecheck/lint/tests + acceptance e2e. |
+| `verify` | `.github/workflows/verify.yml` | PR gate: typecheck/lint/tests + acceptance e2e + optional Lighthouse CI. |
 | `smoke` | `.github/workflows/smoke.yml` | Post-merge smoke e2e tests. |
 | `regression` | `.github/workflows/regression.yml` | Scheduled regression tests against a production URL. |
 | `dependabot-auto-merge` | `.github/workflows/dependabot-auto-merge.yml` | Auto-merge Dependabot PRs after `CI / verify` passes. |
@@ -29,7 +29,7 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 
 - `CI / lint-and-test`
 - `CI / acceptance`
-- `CI / verify` — aggregate gate that only passes when `lint-and-test` **and** `acceptance` pass
+- `CI / verify` — aggregate gate that only passes when `lint-and-test` **and** `acceptance` pass; `lighthouse` is ignored when skipped
 - `CI / smoke`
 - `CI / regression`
 - `CI / lighthouse`
@@ -64,8 +64,14 @@ on:
 jobs:
   verify:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v1.0.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.0.0
+    with:
+      run-lighthouse: true
+    secrets:
+      lhci-github-app-token: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 ```
+
+Omit `with.run-lighthouse` (or set it to `false`) to skip Lighthouse CI.
 
 Replace `The-Adult-In-The-Room/ci-workflows` with the actual owner/repo if you fork or rename this repository.
 
