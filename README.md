@@ -25,7 +25,8 @@ On failure `playwright-test` uploads a `playwright-report` artifact named `playw
 | Workflow | Path | Purpose |
 | --- | --- | --- |
 | `verify` | `.github/workflows/verify.yml` | PR gate: typecheck/lint/tests + acceptance e2e + optional Lighthouse CI. |
-| `smoke` | `.github/workflows/smoke.yml` | Post-merge smoke e2e tests. |
+| `deploy-and-smoke` | `.github/workflows/deploy-and-smoke.yml` | Deploy to Railway, run smoke e2e tests, and roll back on failure. |
+| `smoke` | `.github/workflows/smoke.yml` | Smoke e2e tests against a provided base URL. |
 | `regression` | `.github/workflows/regression.yml` | Scheduled regression tests against a production URL. |
 | `dependabot-auto-merge` | `.github/workflows/dependabot-auto-merge.yml` | Auto-merge Dependabot PRs after `CI / verify` passes. |
 | `lighthouse` | `.github/workflows/lighthouse.yml` | Run Lighthouse CI against a build. |
@@ -37,7 +38,9 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 - `CI / lint-and-test`
 - `CI / acceptance`
 - `CI / verify` — aggregate gate that only passes when `lint-and-test` **and** `acceptance` pass; `lighthouse` is ignored when skipped
+- `CI / deploy`
 - `CI / smoke`
+- `CI / rollback`
 - `CI / regression`
 - `CI / lighthouse`
 
@@ -71,7 +74,7 @@ on:
 jobs:
   verify:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.0.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.1.1
     with:
       run-lighthouse: true
     secrets:

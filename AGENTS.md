@@ -10,9 +10,9 @@ Any change here propagates, via immutable semver tags, to every consumer. Treat 
 
 ## Core principles
 
-1. **Consumers pin to immutable semver tags, never branches.** A consumer reference looks like `The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.0.0`.
+1. **Consumers pin to immutable semver tags, never branches.** A consumer reference looks like `The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.1.1`.
 2. **Internal self-references inside this repo must also be immutable tags or SHAs.** When cutting a release, update all `The-Adult-In-The-Room/ci-workflows/…@<tag>` refs in the same commit.
-3. **Check names are a public API.** Keep them stable once consumers depend on them: `CI / lint-and-test`, `CI / acceptance`, `CI / verify`, `CI / smoke`, `CI / regression`, `CI / lighthouse`.
+3. **Check names are a public API.** Keep them stable once consumers depend on them: `CI / lint-and-test`, `CI / acceptance`, `CI / verify`, `CI / deploy`, `CI / smoke`, `CI / rollback`, `CI / regression`, `CI / lighthouse`.
 4. **Composite actions must never use relative `uses:` paths.** They run in the consumer's checkout, so `uses: ./...` resolves against the wrong repo.
 5. **Artifact names must be filesystem-agnostic.** Never interpolate an input directly into an artifact name; derive a sanitized name in a step and forward `steps.<id>.outputs.<name>`.
 6. **Inputs forwarded into execution must be safe to omit.** Every workflow_call input that reaches a `run:` or `with:` must either have a `default` or be `required: true`, and must declare a `type`.
@@ -25,7 +25,7 @@ Each consumer repo should expose:
 - `npm run verify` — typecheck, lint, format, unit tests
 - `npm run build` — production build
 - `test:e2e:acceptance` — acceptance e2e suite (runs against a local build or dev server)
-- `test:e2e:smoke` — post-merge smoke e2e suite
+- `test:e2e:smoke` — smoke e2e suite (run by `deploy-and-smoke.yml` against the deployed URL)
 - `test:e2e:regression` — scheduled regression suite against production
 - `.nvmrc` — Node version
 - Dependabot config that watches `github-actions` and groups `The-Adult-In-The-Room/ci-workflows` bumps separately from third-party actions.
@@ -41,7 +41,8 @@ All e2e jobs use [Lightpanda](https://github.com/lightpanda-io/browser) for fast
 | Composite action | `setup-node` | `.github/actions/setup-node` | Install Node.js from `.nvmrc` and run `npm ci`. |
 | Composite action | `playwright-test` | `.github/actions/playwright-test` | Install Lightpanda and run a Playwright e2e npm script. |
 | Reusable workflow | `verify` | `.github/workflows/verify.yml` | PR gate: lint/test + acceptance e2e + optional Lighthouse CI. |
-| Reusable workflow | `smoke` | `.github/workflows/smoke.yml` | Post-merge smoke e2e tests. |
+| Reusable workflow | `deploy-and-smoke` | `.github/workflows/deploy-and-smoke.yml` | Deploy to Railway, run smoke e2e tests, and roll back on failure. |
+| Reusable workflow | `smoke` | `.github/workflows/smoke.yml` | Smoke e2e tests against a provided base URL. |
 | Reusable workflow | `regression` | `.github/workflows/regression.yml` | Scheduled regression tests against a production URL. |
 | Reusable workflow | `dependabot-auto-merge` | `.github/workflows/dependabot-auto-merge.yml` | Auto-merge Dependabot PRs after `CI / verify` passes. |
 | Reusable workflow | `lighthouse` | `.github/workflows/lighthouse.yml` | Run Lighthouse CI against a build. |
