@@ -2,6 +2,13 @@
 
 Reusable GitHub workflows and composite actions shared across personal projects.
 
+For detailed guides, see the **[wiki](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki)**:
+
+- [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) — how to add these workflows to your repository
+- [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) — how to cut a new semver release
+- [Troubleshooting](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Troubleshooting) — common failures and how to fix them
+- [Migration Notes](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Migration-Notes) — template and history for breaking changes
+
 All e2e jobs use [Lightpanda](https://github.com/lightpanda-io/browser) for fast, consistent headless testing across every repo.
 
 ## Composite actions
@@ -34,7 +41,7 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 - `CI / regression`
 - `CI / lighthouse`
 
-Use `CI / verify` in branch protection and in the Dependabot auto-merger so the entire PR verification workflow must pass before merging.
+Use `CI / verify` in branch protection and in the Dependabot auto-merger so the entire PR verification workflow must pass before merging. See the [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) for setup details.
 
 ## Self-check
 
@@ -53,7 +60,7 @@ Run either locally with `npm test` and `npm run contract`; `contract` also accep
 
 The rules are unit-tested against deliberately broken fixtures in `scripts/fixtures/`, one per historical bug. `npm test` also asserts that the real workflows satisfy every rule, so a rule that becomes too aggressive fails here rather than in someone's PR.
 
-## Usage
+## Quick usage
 
 ```yaml
 name: Verify
@@ -75,19 +82,11 @@ Omit `with.run-lighthouse` (or set it to `false`) to skip Lighthouse CI.
 
 Replace `The-Adult-In-The-Room/ci-workflows` with the actual owner/repo if you fork or rename this repository.
 
+For full setup instructions — including smoke tests, regression tests, Dependabot config, and branch protection — see the [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide).
+
 ## Versioning
 
 Consumers pin to an **immutable semver tag**, never a branch. Tags are not moved once published.
 
-| Change | Action |
-| --- | --- |
-| Backwards-compatible fix or new optional input with a default | Cut a new patch/minor tag, e.g. `v1.0.2` |
-| Breaking change (renamed/removed input, changed default, renamed check) | Cut `v2.0.0`; consumers opt in via a reviewed PR |
-| Internal-only change (comments, docs) | Push to `main`, cut a tag when convenient |
-
-Because tags are immutable, pushing to `main` does **not** change what consumers resolve. Propagation only happens when a new tag exists and a consumer bumps to it. Each consumer's Dependabot config watches the `github-actions` ecosystem and groups these references separately from third-party actions, so version bumps arrive as reviewable PRs.
-
-Internal cross-references inside this repository (the workflows and the `playwright-test` composite action calling `setup-node`) are pinned to the same release tag. If you cut a new tag, update those internal refs in the same commit — otherwise a consumer pinned to `v1.0.1` would silently pick up an unpinned change.
-
-Do not create a branch named `v1`. Git resolves `refs/tags/v1` before `refs/heads/v1`, so the tag wins, but the branch will cause confusion later.
+See the [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) wiki page for the full release checklist, including how to update internal cross-references.
 
