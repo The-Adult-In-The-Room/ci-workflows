@@ -1,0 +1,151 @@
+{
+  "stage": "facts",
+  "title": "Railway deploy + smoke + rollback workflow",
+  "goalSlug": "railway-deploy-smoke-rollback",
+  "facts": [
+    {
+      "id": "fact-workflow-location",
+      "text": "A new reusable workflow named deploy-and-smoke exists at .github/workflows/deploy-and-smoke.yml in ci-workflows.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-triggers",
+      "text": "The workflow triggers on workflow_call and workflow_dispatch.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-required-inputs",
+      "text": "Required inputs are project (string), service (string), and railway-token (secret).",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-optional-inputs",
+      "text": "Optional inputs are environment (string, default production), smoke-command (string, default test:e2e:smoke), url (string, default empty for auto-discovery), and deploy-timeout (number, default 10 minutes).",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-cli-auth",
+      "text": "The workflow installs the Railway CLI and authenticates with RAILWAY_TOKEN from the provided secret.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-deploy-command",
+      "text": "The workflow runs railway up --detach --project <project> --service <service> --environment <environment> --json to create a deployment without blocking on logs.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-capture-deployment-id",
+      "text": "The workflow captures the new deployment ID from the railway up --json output.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-poll-success",
+      "text": "The workflow polls railway deployment list --json until the captured deployment reaches SUCCESS or the deploy-timeout expires.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-deploy-failure",
+      "text": "If the deployment does not reach SUCCESS, the workflow fails without running smoke tests and does not attempt rollback.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-discover-url",
+      "text": "After SUCCESS, the workflow discovers the deployed service URL via railway domain --json unless the url input is provided.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-smoke-call",
+      "text": "The workflow calls smoke.yml with the smoke-command input, exposing the discovered URL as an environment variable.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-rollback",
+      "text": "If smoke tests fail, the workflow redeploys the previous successful deployment using railway redeploy --deployment <previous-id> and documents that this is a rebuild, not a dashboard image+variable rollback.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-check-name",
+      "text": "The reusable workflow exposes a stable check name CI / deploy-and-smoke for branch protection.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-outputs",
+      "text": "The workflow sets outputs for deployment-id, url, smoke-passed, and rolled-back.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-contract",
+      "text": "The workflow passes npm test and npm run contract validation before any release.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-immutable-refs",
+      "text": "Internal references to ci-workflows reusable workflows and composite actions use immutable semver tags.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-consumer-caller",
+      "text": "Each consumer repo owns a caller workflow triggered on push to main that invokes the deploy-and-smoke reusable workflow with its own Railway project/service settings.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "fact-branch-protection",
+      "text": "Each consumer requires CI / deploy-and-smoke in branch protection for the main branch.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    }
+  ]
+}

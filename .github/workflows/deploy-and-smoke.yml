@@ -1,0 +1,256 @@
+name: Deploy and Smoke
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        description: Railway project ID or name.
+        required: true
+        type: string
+      service:
+        description: Railway service ID or name.
+        required: true
+        type: string
+      environment:
+        description: Railway environment name.
+        required: false
+        type: string
+        default: production
+      smoke-command:
+        description: npm script that runs the smoke e2e suite.
+        required: false
+        type: string
+        default: test:e2e:smoke
+      url:
+        description: Optional explicit URL to run smoke tests against. When empty, the URL is discovered from Railway.
+        required: false
+        type: string
+        default: ""
+      deploy-timeout:
+        description: Maximum minutes to wait for the deployment to reach SUCCESS.
+        required: false
+        type: number
+        default: 10
+    secrets:
+      railway-token:
+        description: Railway project token with deploy access to the target project.
+        required: true
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.deploy-timeout }}
+    env:
+      RAILWAY_TOKEN: ${{ secrets.railway-token }}
+      RAILWAY_PROJECT: ${{ inputs.project }}
+      RAILWAY_SERVICE: ${{ inputs.service }}
+      RAILWAY_ENVIRONMENT: ${{ inputs.environment }}
+    outputs:
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+      previous-commit-hash: ${{ steps.previous.outputs.previous-commit-hash }}
+      url: ${{ steps.url.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.0.0
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+        shell: bash
+
+      - name: Capture previous successful deployment
+        id: previous
+        run: |
+          PREVIOUS=$(railway deployment list --json \
+            --project "$RAILWAY_PROJECT" \
+            --service "$RAILWAY_SERVICE" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --limit 50 | jq -r '[.[]? | select(.status == "SUCCESS")] | first')
+
+          PREVIOUS_ID=$(echo "$PREVIOUS" | jq -r '.id // empty')
+          PREVIOUS_COMMIT=$(echo "$PREVIOUS" | jq -r '.meta.commitHash // empty')
+
+          echo "previous-commit-hash=${PREVIOUS_COMMIT}" >> "$GITHUB_OUTPUT"
+          if [ -n "$PREVIOUS_ID" ]; then
+            echo "Previous successful deployment: ${PREVIOUS_ID}"
+            echo "Previous successful commit: ${PREVIOUS_COMMIT:-unknown}"
+          else
+            echo "No previous successful deployment found. Rollback will not be possible."
+          fi
+        shell: bash
+
+      - name: Deploy to Railway
+        id: deploy
+        run: |
+          set -o pipefail
+          railway up --detach --json \
+            --project "$RAILWAY_PROJECT" \
+            --service "$RAILWAY_SERVICE" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --message "Deploy ${{ github.sha }}" 2>&1 | tee /tmp/railway-up.log
+
+          # With --json, the CLI emits NDJSON build logs and a final result object.
+          # Grab the last non-empty JSON line and extract the deployment id.
+          DEPLOYMENT_ID=$(grep -E '^\s*\{.*\}\s*$' /tmp/railway-up.log | tail -n 1 | jq -r '.deploymentId // .id // empty')
+
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "Could not determine deployment ID from railway up output."
+            echo "--- raw output ---"
+            cat /tmp/railway-up.log
+            exit 1
+          fi
+
+          echo "deployment-id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo "Created deployment: ${DEPLOYMENT_ID}"
+        shell: bash
+
+      - name: Wait for deployment success
+        run: |
+          DEPLOYMENT_ID="${{ steps.deploy.outputs.deployment-id }}"
+          END_TIME=$(($(date +%s) + ${{ inputs.deploy-timeout }} * 60))
+
+          while [ "$(date +%s)" -lt "$END_TIME" ]; do
+            STATUS=$(railway deployment list --json \
+              --project "$RAILWAY_PROJECT" \
+              --service "$RAILWAY_SERVICE" \
+              --environment "$RAILWAY_ENVIRONMENT" \
+              --limit 100 \
+              | jq -r --arg id "$DEPLOYMENT_ID" '.[]? | select(.id == $id) | .status // empty')
+
+            echo "Deployment ${DEPLOYMENT_ID} status: ${STATUS:-unknown}"
+
+            case "$STATUS" in
+              SUCCESS)
+                exit 0
+                ;;
+              FAILED|CRASHED)
+                echo "Deployment ${DEPLOYMENT_ID} failed with status ${STATUS}."
+                exit 1
+                ;;
+              "")
+                echo "Deployment ${DEPLOYMENT_ID} not found in list yet."
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          echo "Deployment ${DEPLOYMENT_ID} did not reach SUCCESS within ${{ inputs.deploy-timeout }} minutes."
+          exit 1
+        shell: bash
+
+      - name: Discover smoke target URL
+        id: url
+        run: |
+          if [ -n "${{ inputs.url }}" ]; then
+            echo "url=${{ inputs.url }}" >> "$GITHUB_OUTPUT"
+            echo "Using provided URL: ${{ inputs.url }}"
+          else
+            DISCOVERED=$(railway domain --json \
+              --project "$RAILWAY_PROJECT" \
+              --service "$RAILWAY_SERVICE" \
+              --environment "$RAILWAY_ENVIRONMENT" 2>/dev/null \
+              | jq -r '
+                .domains? as $domains |
+                if ($domains | type) == "array" then ($domains[0]? // empty)
+                elif type == "array" then (.[0]? // empty)
+                elif type == "object" then (.domain? // .url? // empty)
+                elif type == "string" then .
+                else empty
+                end
+              ')
+            echo "url=${DISCOVERED}" >> "$GITHUB_OUTPUT"
+            if [ -n "$DISCOVERED" ]; then
+              echo "Discovered URL: ${DISCOVERED}"
+            else
+              echo "Could not discover URL from Railway. Provide the url input explicitly."
+              exit 1
+            fi
+          fi
+        shell: bash
+
+  smoke:
+    name: smoke
+    needs: deploy
+    uses: ./.github/workflows/smoke.yml
+    with:
+      command: ${{ inputs.smoke-command }}
+      base-url: ${{ needs.deploy.outputs.url }}
+
+  rollback:
+    name: rollback
+    runs-on: ubuntu-latest
+    needs: [deploy, smoke]
+    if: failure() && needs.smoke.result == 'failure' && needs.deploy.outputs.previous-commit-hash != ''
+    env:
+      RAILWAY_TOKEN: ${{ secrets.railway-token }}
+      RAILWAY_PROJECT: ${{ inputs.project }}
+      RAILWAY_SERVICE: ${{ inputs.service }}
+      RAILWAY_ENVIRONMENT: ${{ inputs.environment }}
+      PREVIOUS_COMMIT_HASH: ${{ needs.deploy.outputs.previous-commit-hash }}
+    steps:
+      - name: Checkout previous successful commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.deploy.outputs.previous-commit-hash }}
+
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.0.0
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+        shell: bash
+
+      - name: Redeploy previous successful commit
+        id: rollback-deploy
+        run: |
+          echo "Smoke tests failed. Redeploying previous successful commit ${PREVIOUS_COMMIT_HASH}."
+          echo "Note: this is a rebuild from the previous commit, not a dashboard image+variable rollback."
+          set -o pipefail
+          railway up --detach --json \
+            --project "$RAILWAY_PROJECT" \
+            --service "$RAILWAY_SERVICE" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --message "Rollback to ${PREVIOUS_COMMIT_HASH}" 2>&1 | tee /tmp/railway-rollback.log
+
+          ROLLBACK_DEPLOYMENT_ID=$(grep -E '^\s*\{.*\}\s*$' /tmp/railway-rollback.log | tail -n 1 | jq -r '.deploymentId // .id // empty')
+          if [ -z "$ROLLBACK_DEPLOYMENT_ID" ]; then
+            echo "Could not determine rollback deployment ID."
+            cat /tmp/railway-rollback.log
+            exit 1
+          fi
+          echo "rollback-deployment-id=${ROLLBACK_DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo "Rollback deployment: ${ROLLBACK_DEPLOYMENT_ID}"
+        shell: bash
+
+      - name: Wait for rollback deployment success
+        run: |
+          ROLLBACK_DEPLOYMENT_ID="${{ steps.rollback-deploy.outputs.rollback-deployment-id }}"
+          END_TIME=$(($(date +%s) + ${{ inputs.deploy-timeout }} * 60))
+          while [ "$(date +%s)" -lt "$END_TIME" ]; do
+            STATUS=$(railway deployment list --json \
+              --project "$RAILWAY_PROJECT" \
+              --service "$RAILWAY_SERVICE" \
+              --environment "$RAILWAY_ENVIRONMENT" \
+              --limit 100 \
+              | jq -r --arg id "$ROLLBACK_DEPLOYMENT_ID" '.[]? | select(.id == $id) | .status // empty')
+
+            echo "Rollback deployment ${ROLLBACK_DEPLOYMENT_ID} status: ${STATUS:-unknown}"
+
+            case "$STATUS" in
+              SUCCESS)
+                echo "Rollback completed."
+                exit 0
+                ;;
+              FAILED|CRASHED)
+                echo "Rollback deployment failed with status ${STATUS}."
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          echo "Rollback deployment did not reach SUCCESS within ${{ inputs.deploy-timeout }} minutes."
+          exit 1
+        shell: bash
