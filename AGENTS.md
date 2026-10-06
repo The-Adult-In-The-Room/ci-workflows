@@ -63,9 +63,10 @@ The contract checker lives in `scripts/contract-check.mjs` and enforces six rule
 When cutting a release:
 
 1. Update internal `The-Adult-In-The-Room/ci-workflows/…@<tag>` refs to the new tag in the same commit.
-2. Create an exact semver tag, e.g. `v1.0.2` or `v2.0.0`.
-3. Never move a tag after publishing.
-4. For breaking changes (renamed input, changed default, renamed check), cut a major version (`v2.0.0`) and let consumers opt in via reviewed PRs.
+2. Update `wiki/` if the release changes consumer-facing behavior, inputs, or check names. The `publish-wiki.yml` workflow syncs `wiki/` to the GitHub wiki on every push to `main` and on every published release.
+3. Create an exact semver tag, e.g. `v1.0.2` or `v2.0.0`.
+4. Never move a tag after publishing.
+5. For breaking changes (renamed input, changed default, renamed check), cut a major version (`v2.0.0`) and let consumers opt in via reviewed PRs.
 
 ## Cross-repo consistency
 
