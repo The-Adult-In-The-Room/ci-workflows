@@ -12,7 +12,7 @@ on:
     branches: [main]
 
 jobs:
-  deploy-and-smoke:
+  CI:
     uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v2.1.0
     with:
       project: ${{ vars.RAILWAY_PROJECT }}
@@ -32,17 +32,28 @@ jobs:
 
 ## Consumer smoke script changes
 
-The `deploy-and-smoke` workflow passes the live URL to `smoke.yml` via the `base-url` input, which sets the `SMOKE_BASE_URL` environment variable. Update each consumer's `test:e2e:smoke` script (or the Playwright config it uses) to read `SMOKE_BASE_URL` and fall back to the local dev server when it is empty:
+The `deploy-and-smoke` workflow passes the live URL to `smoke.yml` via the `base-url` input, which sets the `SMOKE_BASE_URL` environment variable. Smoke tests should be deployment-only: the Playwright smoke config should require `SMOKE_BASE_URL` and not start a local preview server.
 
 ```ts
-// playwright.config.ts
-const baseURL = process.env.SMOKE_BASE_URL || 'http://localhost:4321';
+// playwright.smoke.config.ts
+if (!process.env.SMOKE_BASE_URL) {
+  throw new Error('SMOKE_BASE_URL is required for smoke tests');
+}
 
 export default defineConfig({
-  use: { baseURL },
+  use: { baseURL: process.env.SMOKE_BASE_URL },
+  // ... other shared config
 });
+```
+
+Update `test:e2e:smoke` to use the smoke-specific config, e.g.:
+
+```json
+{
+  "test:e2e:smoke": "playwright test --config=playwright.smoke.config.ts"
+}
 ```
 
 ## Check name
 
-The caller job is named `deploy-and-smoke`, so the required check name for branch protection is `CI / deploy-and-smoke` (assuming the workflow file itself is named `Deploy`).
+The workflow is named `Deploy` and the caller job is named `CI`, so the required check name for branch protection is `Deploy / CI`. Update branch protection to replace the old `Smoke Tests / CI` check.
