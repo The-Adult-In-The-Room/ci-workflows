@@ -82,13 +82,19 @@ jobs:
 
       - name: Deploy to Railway
         id: deploy
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.sha }}
         run: |
           set -o pipefail
+          # Use the commit message as the deployment message, matching Railway's
+          # GitHub-autodeploy behavior. Strip newlines and truncate to avoid
+          # issues with shell quoting or Railway's message length limits.
+          MESSAGE=$(printf '%s' "$COMMIT_MESSAGE" | tr '\n' ' ' | sed -E 's/ +/ /g' | cut -c1-200)
           railway up --detach --json \
             --project "$RAILWAY_PROJECT" \
             --service "$RAILWAY_SERVICE" \
             --environment "$RAILWAY_ENVIRONMENT" \
-            --message "Deploy ${{ github.sha }}" 2>&1 | tee /tmp/railway-up.log
+            --message "$MESSAGE" 2>&1 | tee /tmp/railway-up.log
 
           # With --json, the CLI emits NDJSON build logs and a final result object.
           # Grab the last non-empty JSON line and extract the deployment id.
@@ -207,11 +213,15 @@ jobs:
           echo "Smoke tests failed. Redeploying previous successful commit ${PREVIOUS_COMMIT_HASH}."
           echo "Note: this is a rebuild from the previous commit, not a dashboard image+variable rollback."
           set -o pipefail
+          # Use the previous commit's message as the deployment message. Fall
+          # back to the short SHA if git metadata is unavailable.
+          MESSAGE=$(git log -1 --pretty=%B 2>/dev/null | tr '\n' ' ' | sed -E 's/ +/ /g' | cut -c1-200)
+          [ -z "$MESSAGE" ] && MESSAGE="Rollback to ${PREVIOUS_COMMIT_HASH}"
           railway up --detach --json \
             --project "$RAILWAY_PROJECT" \
             --service "$RAILWAY_SERVICE" \
             --environment "$RAILWAY_ENVIRONMENT" \
-            --message "Rollback to ${PREVIOUS_COMMIT_HASH}" 2>&1 | tee /tmp/railway-rollback.log
+            --message "$MESSAGE" 2>&1 | tee /tmp/railway-rollback.log
 
           ROLLBACK_DEPLOYMENT_ID=$(grep -E '^\s*\{.*\}\s*$' /tmp/railway-rollback.log | tail -n 1 | jq -r '.deploymentId // .id // empty')
           if [ -z "$ROLLBACK_DEPLOYMENT_ID" ]; then
