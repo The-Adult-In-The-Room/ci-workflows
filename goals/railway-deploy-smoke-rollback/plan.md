@@ -90,7 +90,9 @@ Because Railway's CLI cannot perform a dashboard-style image+variable rollback, 
 
 **Files:** in `blog`, `portfolio`, and `poe2-tools`: `.github/workflows/deploy.yml` (or similar)
 
-Each consumer creates a caller workflow:
+Each consumer:
+
+1. Creates `.github/workflows/deploy.yml`:
 
 ```yaml
 name: Deploy
@@ -98,7 +100,7 @@ on:
   push:
     branches: [main]
 jobs:
-  deploy-and-smoke:
+  CI:
     uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v2.1.0
     with:
       project: ${{ vars.RAILWAY_PROJECT }}
@@ -108,13 +110,15 @@ jobs:
       railway-token: ${{ secrets.RAILWAY_TOKEN }}
 ```
 
-- Store `RAILWAY_PROJECT` and `RAILWAY_SERVICE` as repository variables (not secrets) so they are visible in the workflow file.
-- Store `RAILWAY_TOKEN` as a repository secret.
-- Update consumer smoke scripts to read `SMOKE_BASE_URL` when present.
+2. Removes the old `.github/workflows/smoke.yml` that only ran smoke tests post-merge, since `deploy-and-smoke` now runs smoke tests after deploying.
+3. Updates the Playwright smoke config to read `SMOKE_BASE_URL` and skip the local web server when it is set.
+4. Stores `RAILWAY_PROJECT` and `RAILWAY_SERVICE` as repository variables (not secrets) so they are visible in the workflow file.
+5. Stores `RAILWAY_TOKEN` as a repository secret.
 
 **Verification:**
 - A merge to `main` triggers the deploy-and-smoke workflow.
-- The check name `CI / deploy-and-smoke` appears on the commit.
+- The check name `Deploy / CI` appears on the commit.
+- Branch protection is updated from the old `Smoke Tests / CI` to `Deploy / CI`.
 
 ## Risks and open questions
 

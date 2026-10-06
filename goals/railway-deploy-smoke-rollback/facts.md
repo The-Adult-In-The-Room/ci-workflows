@@ -12,7 +12,7 @@
 - After SUCCESS, the workflow discovers the deployed service URL via railway domain --json unless the url input is provided.
 - The workflow calls smoke.yml with the smoke-command input, exposing the discovered URL as an environment variable.
 - If smoke tests fail, the workflow checks out the previous successful commit and redeploys it with railway up, documenting that this is a rebuild from the previous source with current variables, not a dashboard image+variable rollback.
-- The reusable workflow exposes a stable check name CI / deploy-and-smoke for branch protection.
+- Each consumer caller workflow is named Deploy with a CI job, exposing a stable check name Deploy / CI for branch protection.
 - The workflow sets outputs for deployment-id, previous-commit-hash, and url.
 - The workflow passes npm test and npm run contract validation before any release.
 - Internal references to ci-workflows reusable workflows and composite actions use immutable semver tags.
