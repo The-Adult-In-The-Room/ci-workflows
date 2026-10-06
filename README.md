@@ -2,7 +2,7 @@
 
 Reusable GitHub workflows and composite actions shared across personal projects.
 
-For detailed guides, see the **[wiki](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki)**:
+For detailed guides, see the **[wiki](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki)**. The wiki source lives in the `wiki/` directory of this repo and is auto-published to GitHub on every push to `main`:
 
 - [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) — how to add these workflows to your repository
 - [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) — how to cut a new semver release
