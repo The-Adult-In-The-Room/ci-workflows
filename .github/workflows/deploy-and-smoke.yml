@@ -179,7 +179,7 @@ jobs:
   smoke:
     name: smoke
     needs: deploy
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v2.1.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v2.1.1
     with:
       command: ${{ inputs.smoke-command }}
       base-url: ${{ needs.deploy.outputs.url }}
