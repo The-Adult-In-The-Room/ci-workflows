@@ -190,11 +190,12 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
 
   // A file we cannot parse would otherwise pass every rule vacuously.
   //
-  // These rules are therefore the *only* structural check the composite actions
-  // under `.github/actions` get: actionlint is a workflow linter, and in
-  // project mode it collects only `.github/workflows/*.yml`. Verified with
-  // actionlint v1.7.12 — it reports nothing for a malformed `action.yml`, and
-  // given one directly it parses it as a workflow and emits nonsense.
+  // The `lint` job now runs mpalmer/action-validator against the composite
+  // actions under `.github/actions`, so those files get proper schema
+  // validation. `parse-error` remains as a backstop: it keeps the contract
+  // checker from silently swallowing unparseable YAML, and it lets `npm run
+  // contract` surface gross syntax errors even when action-validator is not
+  // installed locally.
   for (const error of doc.errors) {
     const { line, column } = positionAt(error.pos?.[0] ?? 0)
     violations.push({
