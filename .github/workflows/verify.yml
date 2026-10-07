@@ -61,12 +61,19 @@ jobs:
   lighthouse:
     name: lighthouse
     runs-on: ubuntu-latest
-    # Lighthouse CI needs a GitHub app token. Dependabot PRs run with a
-    # read-only token and no access to repository secrets, so skip the job
-    # entirely when the token is not available. The job remains advisory: the
-    # merge gate below ignores its result. See issue #7.
-    if: inputs.run-lighthouse && secrets.lhci-github-app-token != ''
+    # Dependabot PRs run with a read-only GITHUB_TOKEN and no access to
+    # repository secrets. Lighthouse CI needs LHCI_GITHUB_APP_TOKEN, so skip
+    # the job entirely for Dependabot. The job remains advisory: the merge gate
+    # below ignores its result. See issue #7.
+    if: inputs.run-lighthouse && github.actor != 'dependabot[bot]'
+    env:
+      LHCI_GITHUB_APP_TOKEN: ${{ secrets.lhci-github-app-token }}
     steps:
+      - name: Require Lighthouse token
+        if: env.LHCI_GITHUB_APP_TOKEN == ''
+        run: |
+          echo "secrets.lhci-github-app-token must be set when run-lighthouse is true."
+          exit 1
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -77,8 +84,6 @@ jobs:
         run: ${{ inputs.build-command }}
       - name: Run Lighthouse CI
         run: ${{ inputs.lhci-command }}
-        env:
-          LHCI_GITHUB_APP_TOKEN: ${{ secrets.lhci-github-app-token }}
 
   verify:
     name: verify

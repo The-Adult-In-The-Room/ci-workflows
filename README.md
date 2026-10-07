@@ -50,7 +50,7 @@ Use `CI / verify` in branch protection and in the Dependabot auto-merger so the 
 
 Dependabot pull requests run with a **read-only** `GITHUB_TOKEN` and **no access to repository secrets**. Any check that needs a secret will fail on those PRs. For that reason:
 
-- `CI / lighthouse` is **advisory**. It needs `LHCI_GITHUB_APP_TOKEN`, so it is skipped when the token is unavailable (for example, on Dependabot PRs). Do **not** require `CI / lighthouse` in branch protection.
+- `CI / lighthouse` is **advisory**. It needs `LHCI_GITHUB_APP_TOKEN`, so it is skipped on Dependabot PRs because they cannot access repository secrets. Do **not** require `CI / lighthouse` in branch protection.
 - The merge gate is `CI / verify`, which only requires `lint-and-test` and `acceptance` to pass.
 - Any future secret-requiring job (for example, a canary deployment) must follow the same pattern: report its result, but never become a required check.
 
