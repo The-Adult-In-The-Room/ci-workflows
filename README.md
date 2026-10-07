@@ -52,10 +52,10 @@ This repository gates its own changes with `Self Check`, which runs two independ
 
 | Check | What it enforces |
 | --- | --- |
-| `lint` | `actionlint` — the workflows and actions are structurally valid YAML. |
+| `lint` | `actionlint` validates workflows; `mpalmer/action-validator` validates composite `action.yml` files against the GitHub Actions schema. |
 | `contract` | `scripts/contract-check.mjs` — the *interface* to consumers holds up. |
 
-`actionlint` cannot see the bugs that actually cost us consumers, because each one was valid YAML with a broken contract: a composite action referencing a sibling by relative path, `npm run ${{ inputs.command }}` where the default was a whole command, a required secret with no description, an artifact name interpolated from an input where the `:` in `test:e2e:regression` is an invalid artifact-name character. `contract` covers those six rules.
+`actionlint` is a workflow linter and, in project mode, collects only `.github/workflows/*.yml`, so composite actions used to receive no structural validation at all. `mpalmer/action-validator` closes that gap. Neither tool can see the interface bugs that actually cost us consumers — a composite action referencing a sibling by relative path, `npm run ${{ inputs.command }}` where the default was a whole command, a required secret with no description, an artifact name interpolated from an input where the `:` in `test:e2e:regression` is an invalid artifact-name character. `contract` covers those six rules.
 
 The check names `lint` and `contract` are stable and will not be reworded. Once a ruleset requires a check by name, renaming a job breaks every open PR and every branch-protection entry. Treat any change here as a breaking change.
 

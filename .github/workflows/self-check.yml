@@ -20,12 +20,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # rhysd/actionlint publishes only vX.Y.Z tags, with no floating `v1`
-      # ref, so this must stay pinned to an exact version.
+      # ref, so this must stay pinned to an exact version. actionlint is a
+      # workflow linter; in project mode it collects only .github/workflows/*.yml,
+      # so it does not structurally validate composite actions.
       - uses: rhysd/actionlint@v1.7.12
+      # mpalmer/action-validator is purpose-built for action.yml files and
+      # checks them against the published GitHub Actions schema. It complements
+      # actionlint's workflow coverage. Pin both the action ref and the binary
+      # version so the linter cannot change under us.
+      - uses: mpalmer/action-validator@v0.9.0
+        with:
+          version: 0.9.0
+          patterns: |
+            :(glob).github/actions/**/action.yml
+            :(glob).github/actions/**/action.yaml
 
-  # actionlint checks that the YAML is structurally valid. It cannot see the
-  # interface bugs that actually reach consumers, so `contract` checks those.
-  # See issue #3. `yaml` is the only dependency; `npm ci` installs nothing else.
+  # `lint` checks that the YAML is structurally valid (actionlint for workflows,
+  # action-validator for composite actions). Neither tool can see the interface
+  # bugs that actually reach consumers, so `contract` checks those. See issue #3.
+  # `yaml` is the only dependency; `npm ci` installs nothing else.
   contract:
     runs-on: ubuntu-latest
     steps:
