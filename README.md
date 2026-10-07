@@ -37,7 +37,7 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 
 - `CI / lint-and-test`
 - `CI / acceptance`
-- `CI / verify` — aggregate gate that only passes when `lint-and-test` **and** `acceptance` pass; `lighthouse` is ignored when skipped
+- `CI / verify` — merge gate; only `lint-and-test` **and** `acceptance` are required to pass. `lighthouse` is advisory and ignored by the gate
 - `CI / deploy`
 - `CI / smoke`
 - `CI / rollback`
@@ -45,6 +45,14 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 - `CI / lighthouse`
 
 Use `CI / verify` in branch protection and in the Dependabot auto-merger so the entire PR verification workflow must pass before merging. See the [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) for setup details.
+
+## Dependabot and secret-requiring checks
+
+Dependabot pull requests run with a **read-only** `GITHUB_TOKEN` and **no access to repository secrets**. Any check that needs a secret will fail on those PRs. For that reason:
+
+- `CI / lighthouse` is **advisory**. It needs `LHCI_GITHUB_APP_TOKEN`, so it is skipped when the token is unavailable (for example, on Dependabot PRs). Do **not** require `CI / lighthouse` in branch protection.
+- The merge gate is `CI / verify`, which only requires `lint-and-test` and `acceptance` to pass.
+- Any future secret-requiring job (for example, a canary deployment) must follow the same pattern: report its result, but never become a required check.
 
 ## Self-check
 

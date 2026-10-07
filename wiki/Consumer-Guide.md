@@ -150,6 +150,8 @@ updates:
 
 Require the `CI / verify` check to pass before merging. If you use `deploy-and-smoke.yml`, you may also require `CI / deploy` and `CI / smoke`, but do **not** require `CI / rollback` — it only runs when `smoke` fails.
 
+Do **not** require `CI / lighthouse`. It needs the `LHCI_GITHUB_APP_TOKEN` secret, and Dependabot PRs have no access to repository secrets. `verify.yml` runs `lighthouse` only when the token is available and ignores its result in the `CI / verify` merge gate, so it is purely an advisory signal.
+
 ## Standard check names
 
 When the caller job is named `CI`, these checks are reported:

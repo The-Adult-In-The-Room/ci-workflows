@@ -82,6 +82,14 @@ If you rename one, update branch protection in every consumer repo.
 
 **Fix:** Ensure acceptance e2e runs against a local build or a properly started dev server. Check Lightpanda compatibility for non-standard APIs.
 
+## Lighthouse is skipped or fails on Dependabot PRs
+
+**Symptom:** `CI / lighthouse` is skipped, or fails with a missing token, on Dependabot PRs.
+
+**Cause:** Dependabot runs with a read-only `GITHUB_TOKEN` and no access to repository secrets. `LHCI_GITHUB_APP_TOKEN` is therefore unavailable.
+
+**Fix:** This is expected. `CI / lighthouse` is an advisory check; only `CI / verify` should be required in branch protection. Do not require `CI / lighthouse`.
+
 ## Dependabot does not group ci-workflows bumps
 
 **Symptom:** Each `ci-workflows` release creates a separate Dependabot PR.

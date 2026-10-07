@@ -61,15 +61,12 @@ jobs:
   lighthouse:
     name: lighthouse
     runs-on: ubuntu-latest
-    if: inputs.run-lighthouse
-    env:
-      LHCI_GITHUB_APP_TOKEN: ${{ secrets.lhci-github-app-token }}
+    # Lighthouse CI needs a GitHub app token. Dependabot PRs run with a
+    # read-only token and no access to repository secrets, so skip the job
+    # entirely when the token is not available. The job remains advisory: the
+    # merge gate below ignores its result. See issue #7.
+    if: inputs.run-lighthouse && secrets.lhci-github-app-token != ''
     steps:
-      - name: Require Lighthouse token
-        if: env.LHCI_GITHUB_APP_TOKEN == ''
-        run: |
-          echo "secrets.lhci-github-app-token must be set when run-lighthouse is true."
-          exit 1
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -80,6 +77,8 @@ jobs:
         run: ${{ inputs.build-command }}
       - name: Run Lighthouse CI
         run: ${{ inputs.lhci-command }}
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.lhci-github-app-token }}
 
   verify:
     name: verify
@@ -87,11 +86,15 @@ jobs:
     needs: [lint-and-test, acceptance, lighthouse]
     if: always()
     steps:
-      - name: Require all verify jobs to pass
-        if: ${{ needs.lint-and-test.result != 'success' || needs.acceptance.result != 'success' || (needs.lighthouse.result != 'success' && needs.lighthouse.result != 'skipped') }}
+      # The merge gate is intentionally secret-free. Lighthouse is an advisory
+      # signal; requiring it would block Dependabot PRs that cannot access
+      # repository secrets. See issue #7.
+      - name: Require lint-and-test and acceptance to pass
+        if: ${{ needs.lint-and-test.result != 'success' || needs.acceptance.result != 'success' }}
         run: |
           echo "lint-and-test result: ${{ needs.lint-and-test.result }}"
           echo "acceptance result: ${{ needs.acceptance.result }}"
-          echo "lighthouse result: ${{ needs.lighthouse.result }}"
           exit 1
+      - name: Report advisory Lighthouse result
+        run: 'echo "lighthouse result: ${{ needs.lighthouse.result }} (advisory; not part of the merge gate)"'
       - run: echo "Verify workflow passed."

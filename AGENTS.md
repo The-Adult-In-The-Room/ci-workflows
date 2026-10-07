@@ -17,6 +17,7 @@ Any change here propagates, via immutable semver tags, to every consumer. Treat 
 5. **Artifact names must be filesystem-agnostic.** Never interpolate an input directly into an artifact name; derive a sanitized name in a step and forward `steps.<id>.outputs.<name>`.
 6. **Inputs forwarded into execution must be safe to omit.** Every workflow_call input that reaches a `run:` or `with:` must either have a `default` or be `required: true`, and must declare a `type`.
 7. **Required secrets must have descriptions.** Consumers cannot guess what to pass.
+8. **Secret-requiring checks are advisory, not merge gates.** Dependabot PRs have no access to repository secrets, so a check that needs a secret will fail on those PRs. The merge gate must stay secret-free.
 
 ## Standard consumer shape
 
