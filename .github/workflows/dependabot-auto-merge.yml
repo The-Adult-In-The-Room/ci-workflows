@@ -13,6 +13,16 @@ on:
         required: false
         type: string
         default: squash
+      checks-discovery-timeout:
+        description: >-
+          Seconds to wait for the required check to be discovered before
+          failing. Dependabot PRs trigger this workflow before the verify
+          workflow has created its check runs, so this must be long enough
+          for the verify workflow to start (typically 60–120s). Defaults to
+          300s (5 minutes).
+        required: false
+        type: number
+        default: 300
 
 permissions:
   contents: write
@@ -30,6 +40,7 @@ jobs:
           check-name: ${{ inputs.check-name }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
+          checks-discovery-timeout: ${{ inputs.checks-discovery-timeout }}
 
       - run: gh pr merge --auto --${{ inputs.merge-method }} "$PR_URL"
         env:

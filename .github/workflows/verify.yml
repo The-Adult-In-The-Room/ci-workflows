@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.0.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
         with:
           node-version-file: ${{ inputs.node-version-file }}
       - run: ${{ inputs.verify-command }}
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@v2.0.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@v2.2.0
         with:
           command: ${{ inputs.acceptance-command }}
 
@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.0.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
         with:
           node-version-file: ${{ inputs.node-version-file }}
       - name: Build

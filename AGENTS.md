@@ -10,7 +10,7 @@ Any change here propagates, via immutable semver tags, to every consumer. Treat 
 
 ## Core principles
 
-1. **Consumers pin to immutable semver tags, never branches.** A consumer reference looks like `The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.1.1`.
+1. **Consumers pin to immutable semver tags, never branches.** A consumer reference looks like `The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.2.0`.
 2. **Internal self-references inside this repo must also be immutable tags or SHAs.** When cutting a release, update all `The-Adult-In-The-Room/ci-workflows/…@<tag>` refs in the same commit.
 3. **Check names are a public API.** Keep them stable once consumers depend on them: `CI / lint-and-test`, `CI / acceptance`, `CI / verify`, `CI / deploy`, `CI / smoke`, `CI / rollback`, `CI / regression`, `CI / lighthouse`.
 4. **Composite actions must never use relative `uses:` paths.** They run in the consumer's checkout, so `uses: ./...` resolves against the wrong repo.

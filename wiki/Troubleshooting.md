@@ -9,7 +9,7 @@ Common problems when working with `ci-workflows`.
 **Fix:** Always use the full repository reference with an immutable tag:
 
 ```yaml
-uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.1.1
+uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
 ```
 
 ## Internal refs still point to an old tag
@@ -93,6 +93,23 @@ groups:
   ci-workflows:
     patterns:
       - "The-Adult-In-The-Room/ci-workflows/*"
+```
+
+## Dependabot auto-merge fails with "Wait for check" exit code 1
+
+**Symptom:** `CI / auto-merge` fails about 60–80 seconds after the PR is opened, before `CI / verify` has had a chance to run.
+
+**Cause:** `dependabot-auto-merge.yml` uses `lewagon/wait-on-check-action`, which has a `checks-discovery-timeout` (default 60 s). Dependabot PRs trigger the workflow before the verify workflow has created its check runs; if discovery times out, the action exits with code 1.
+
+**Fix:** The reusable workflow now exposes a `checks-discovery-timeout` input (default 300 s / 5 min). Consumers pinned to a release that includes this fix will get the longer timeout automatically. If your verify workflow takes especially long to start, you can pass an explicit value:
+
+```yaml
+jobs:
+  auto-merge:
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v2.2.0
+    with:
+      checks-discovery-timeout: 600
+    secrets: inherit
 ```
 
 ## Still stuck?
