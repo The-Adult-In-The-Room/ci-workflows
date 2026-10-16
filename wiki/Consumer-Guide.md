@@ -27,13 +27,13 @@ on:
 jobs:
   verify:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.1.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.2.0
     secrets: inherit
     with:
       run-lighthouse: true
 ```
 
-> Replace `v2.1.1` with the latest immutable semver tag. Never pin to a branch.
+> Replace `v2.2.0` with the latest immutable semver tag. Never pin to a branch.
 
 ## Add deploy-and-smoke tests
 
@@ -49,7 +49,7 @@ on:
 jobs:
   deploy:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v2.1.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v2.2.0
     with:
       project: ${{ vars.RAILWAY_PROJECT }}
       service: ${{ vars.RAILWAY_SERVICE }}
@@ -81,7 +81,7 @@ on:
 jobs:
   smoke:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v2.1.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v2.2.0
     with:
       base-url: "https://your-url.example.com"
 ```
@@ -101,7 +101,7 @@ on:
 jobs:
   regression:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/regression.yml@v2.1.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/regression.yml@v2.2.0
     with:
       base-url: ${{ vars.REGRESSION_BASE_URL }}
       base-url-required: true
@@ -120,7 +120,7 @@ on:
 
 jobs:
   auto-merge:
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v2.1.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v2.2.0
     secrets: inherit
 ```
 

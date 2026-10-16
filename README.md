@@ -74,7 +74,7 @@ on:
 jobs:
   verify:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.1.1
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.2.0
     with:
       run-lighthouse: true
     secrets:
