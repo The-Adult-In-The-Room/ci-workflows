@@ -22,6 +22,6 @@ jobs:
       SMOKE_BASE_URL: ${{ inputs.base-url }}
     steps:
       - uses: actions/checkout@v7
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@v2.0.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/playwright-test@v2.2.0
         with:
           command: ${{ inputs.command }}
