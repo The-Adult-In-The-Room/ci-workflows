@@ -27,7 +27,13 @@ rules:
       - .github/workflows/deploy-and-smoke.yml
       - .github/workflows/smoke.yml
 
-  # Internal workflows (prefixed with _) don't trigger canary targets
+  # Changes to the canary dispatcher trigger both targets
+  # (validates the dispatcher can correctly orchestrate both workflows)
+  - targets: [verify, deploy]
+    paths:
+      - .github/workflows/_canary-dispatcher.yml
+
+  # Other internal workflows (prefixed with _) don't trigger canary targets
   - targets: []
     paths:
       - .github/workflows/_*.yml
