@@ -54,3 +54,4 @@ jobs:
       # widen into its neighbours or stop catching its bug.
       - run: npm test
       - run: npm run contract
+# Test: trigger both-skipped canary scenario (internal workflow)
