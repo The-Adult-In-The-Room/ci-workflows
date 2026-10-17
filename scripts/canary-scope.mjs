@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Determine which canary targets to run based on changed files in a diff.
-// Reads a list of changed paths (from git diff) and the canary-map.yml,
+// Reads a list of changed paths (from git diff) and the _canary-map.yml,
 // then emits the union of targets that match the changed paths.
 //
 // Fail-safe rules:
-//   - If canary-map.yml itself is in the diff, run ALL targets
+//   - If _canary-map.yml itself is in the diff, run ALL targets
 //   - If a changed path doesn't match any rule, run ALL targets
 //   - If no paths match any rule, emit an empty array (no targets to run)
 //
@@ -27,10 +27,10 @@ import { minimatch } from 'minimatch'
 const ALL_TARGETS = ['deploy', 'verify']
 
 // The map file itself triggers all targets when changed (fail-safe).
-const MAP_FILE = '.github/canary-map.yml'
+const MAP_FILE = '.github/_canary-map.yml'
 
 /**
- * Load and parse the canary-map.yml file.
+ * Load and parse the _canary-map.yml file.
  * Returns the rules array, or throws if the file is missing or malformed.
  */
 function loadCanaryMap(repoRoot) {
@@ -39,7 +39,7 @@ function loadCanaryMap(repoRoot) {
   const doc = parse(content)
   const rules = doc.rules
   if (!Array.isArray(rules)) {
-    throw new Error(`canary-map.yml must contain a 'rules' array`)
+    throw new Error(`_canary-map.yml must contain a 'rules' array`)
   }
   return rules
 }

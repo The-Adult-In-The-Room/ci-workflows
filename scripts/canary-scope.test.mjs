@@ -5,7 +5,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { computeTargets } from './canary-scope.mjs'
 
-// Sample rules matching .github/canary-map.yml
+// Sample rules matching .github/_canary-map.yml
 const SAMPLE_RULES = [
   {
     targets: ['verify'],
@@ -67,15 +67,15 @@ describe('computeTargets', () => {
   })
 
   describe('fail-safe: map file changed', () => {
-    it('returns ALL targets when canary-map.yml is in the diff', () => {
-      const paths = ['.github/canary-map.yml']
+    it('returns ALL targets when _canary-map.yml is in the diff', () => {
+      const paths = ['.github/_canary-map.yml']
       const targets = computeTargets(paths, SAMPLE_RULES)
       assert.deepStrictEqual(targets, ['deploy', 'verify'])
     })
 
     it('returns ALL targets even if other files also changed', () => {
       const paths = [
-        '.github/canary-map.yml',
+        '.github/_canary-map.yml',
         '.github/workflows/verify.yml',
       ]
       const targets = computeTargets(paths, SAMPLE_RULES)
