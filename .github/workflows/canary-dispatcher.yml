@@ -24,13 +24,13 @@ jobs:
       - name: Compute canary targets
         id: scope
         run: |
-          # Get list of changed files in this PR
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          # Get list of changed files in this PR as an array
+          mapfile -t CHANGED_FILES < <(git diff --name-only origin/main...HEAD)
           echo "Changed files:"
-          echo "$CHANGED_FILES"
+          printf '%s\n' "${CHANGED_FILES[@]}"
           
           # Compute targets
-          TARGETS=$(node scripts/canary-scope.mjs $CHANGED_FILES)
+          TARGETS=$(node scripts/canary-scope.mjs "${CHANGED_FILES[@]}")
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           echo "Computed targets: $TARGETS"
 

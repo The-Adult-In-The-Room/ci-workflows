@@ -19,7 +19,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseDocument } from 'yaml'
+import { parse } from 'yaml'
 import { minimatch } from 'minimatch'
 
 // All known targets. If we add a new target, add it here.
@@ -36,8 +36,8 @@ const MAP_FILE = '.github/canary-map.yml'
 function loadCanaryMap(repoRoot) {
   const mapPath = join(repoRoot, MAP_FILE)
   const content = readFileSync(mapPath, 'utf8')
-  const doc = parseDocument(content)
-  const rules = doc.get('rules')
+  const doc = parse(content)
+  const rules = doc.rules
   if (!Array.isArray(rules)) {
     throw new Error(`canary-map.yml must contain a 'rules' array`)
   }
