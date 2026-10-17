@@ -1,13 +1,21 @@
 # Canary dispatcher: dispatches the blog canary workflow on PRs.
-# This workflow is part of the public API for the canary system.
-# It runs on every PR to ci-workflows and dispatches the blog canary
-# to test the reusable workflows against the changes.
+# This workflow runs on every PR to ci-workflows, moves the `canary` tag
+# to the PR head commit, and dispatches the blog canary to test the reusable
+# workflows against the changes.
+#
+# Concurrency: dispatches are serialized. If multiple PRs trigger simultaneously,
+# they queue up instead of racing (which would cause tag conflicts).
 
 name: Canary Dispatcher
 
 on:
   pull_request:
     branches: [main]
+
+# Serialize dispatches to prevent tag races
+concurrency:
+  group: canary-dispatch
+  cancel-in-progress: false
 
 jobs:
   dispatch:
@@ -18,6 +26,8 @@ jobs:
         with:
           # Fetch full history so we can diff against main
           fetch-depth: 0
+          # Use PAT for tag manipulation (needs contents:write on ci-workflows)
+          token: ${{ secrets.CANARY_PAT }}
 
       - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.3.0
 
@@ -45,11 +55,27 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Move canary tag to PR head
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CANARY_PAT: ${{ secrets.CANARY_PAT }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Configure git to use PAT for authentication
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          # Delete existing canary tag (if any) and create new one on PR head
+          git push origin :refs/tags/canary 2>/dev/null || true
+          git tag -f canary "$PR_HEAD_SHA"
+          git push origin canary
+          
+          echo "Moved canary tag to $PR_HEAD_SHA"
+
       - name: Dispatch to blog canary
         if: steps.check.outputs.skip != 'true'
         env:
           CANARY_PAT: ${{ secrets.CANARY_PAT }}
-          REF: ${{ github.event.pull_request.head.sha }}
           PR: ${{ github.event.pull_request.number }}
           TARGETS: ${{ steps.scope.outputs.targets }}
         run: |
@@ -61,8 +87,10 @@ jobs:
             -d "{
               \"event_type\": \"canary\",
               \"client_payload\": {
-                \"ref\": \"$REF\",
                 \"pr\": $PR,
                 \"targets\": $TARGETS
               }
             }"
+          
+          echo "Dispatched canary to blog with targets: $TARGETS"
+          echo "PR: $PR"
