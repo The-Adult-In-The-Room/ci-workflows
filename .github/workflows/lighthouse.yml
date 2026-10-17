@@ -3,6 +3,8 @@
 #   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/lighthouse.yml@v2.3.0
 # This workflow is part of the public API. Check names, inputs, and secrets are stable.
 
+#
+# Test change to trigger canary lighthouse target.
 name: Lighthouse
 
 on:
