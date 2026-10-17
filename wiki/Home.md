@@ -7,6 +7,7 @@ This repository is the single source of truth for reusable GitHub Actions workfl
 ## Guides
 
 - [Consumer Guide](Consumer-Guide) — how to add these workflows to your repository
+- [Canary System](Canary-System) — automated testing infrastructure for workflow changes
 - [Release Process](Release-Process) — how to cut a new semver release
 - [Troubleshooting](Troubleshooting) — common failures and how to fix them
 - [Migration Notes](Migration-Notes) — template and history for breaking changes
