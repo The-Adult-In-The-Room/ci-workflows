@@ -4,6 +4,7 @@
 #
 # Targets:
 #   - verify: runs the verify workflow (lint, test, acceptance e2e)
+#   - lighthouse: runs the lighthouse workflow (performance audits)
 #   - deploy: runs deploy-and-smoke against the Railway canary environment
 #
 # Fail-safe rules:
@@ -19,8 +20,12 @@ rules:
   - targets: [verify]
     paths:
       - .github/workflows/verify.yml
-      - .github/workflows/lighthouse.yml
       - .github/workflows/regression.yml
+
+  # Changes to lighthouse workflow trigger only lighthouse target
+  - targets: [lighthouse]
+    paths:
+      - .github/workflows/lighthouse.yml
 
   # Changes to deploy workflows trigger only deploy target
   - targets: [deploy]

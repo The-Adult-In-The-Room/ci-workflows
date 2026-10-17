@@ -67,7 +67,7 @@ jobs:
           TARGETS: ${{ steps.scope.outputs.targets }}
         run: |
           # Define all possible targets
-          ALL_TARGETS='["verify", "deploy"]'
+          ALL_TARGETS='["verify", "lighthouse", "deploy"]'
           
           # Use Node.js to check which targets are needed and post skipped status
           node -e "

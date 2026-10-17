@@ -29,7 +29,7 @@ Canary Dispatcher runs (_canary-dispatcher.yml)
     ↓
 Scripts/canary-scope.mjs analyzes changed files
     ↓
-Determines targets (verify, deploy, or both)
+Determines targets (verify, lighthouse, deploy, or combinations)
     ↓
 Moves canary tag to PR commit
     ↓
@@ -46,22 +46,24 @@ The canary system uses `.github/_canary-map.yml` to determine which workflows to
 
 | Changed File | Canary Target |
 |-------------|---------------|
-| `verify.yml`, `lighthouse.yml` | verify only |
+| `verify.yml`, `regression.yml` | verify only |
+| `lighthouse.yml` | lighthouse only |
 | `deploy-and-smoke.yml`, `smoke.yml` | deploy only |
-| `playwright-test/**`, `setup-node/**` | both verify and deploy |
-| `_canary-dispatcher.yml` | both verify and deploy |
+| `_canary-dispatcher.yml` | verify, lighthouse, and deploy |
+| `playwright-test/**`, `setup-node/**` | verify and deploy |
 | Internal workflows (`_*.yml`) | neither (skip canary) |
 | Safe files (README, package.json, etc.) | neither (skip canary) |
-| Unknown files | both (fail-safe) |
-| `_canary-map.yml` itself | both (fail-safe) |
+| Unknown files | all three targets (fail-safe) |
+| `_canary-map.yml` itself | all three targets (fail-safe) |
 
 **Fail-safe behavior**: If a changed file doesn't match any rule, the canary runs both targets. This prevents accidentally skipping tests when someone adds a new workflow without updating the map.
 
 ## Status Checks
 
-Every PR gets status checks for both canary targets:
+Every PR gets status checks for all three canary targets:
 
 - **`canary / verify`** — runs lint, test, and acceptance e2e
+- **`canary / lighthouse`** — runs Lighthouse CI performance audits
 - **`canary / deploy`** — runs deploy-and-smoke against Railway canary environment
 
 These checks are always present, even when they're not needed. If a target is skipped, it posts a "skipped" status with a success state. This allows the canary checks to be required in branch protection rules.
@@ -102,6 +104,10 @@ rules:
   - targets: [verify]
     paths:
       - .github/workflows/verify.yml
+      - .github/workflows/regression.yml
+  
+  - targets: [lighthouse]
+    paths:
       - .github/workflows/lighthouse.yml
   
   - targets: [deploy]
@@ -139,7 +145,7 @@ The canary checks can be required in branch protection rules. Because they alway
 
 To require canary checks:
 1. Go to Settings → Rules → Rulesets
-2. Add `canary / verify` and `canary / deploy` to required status checks
+2. Add `canary / verify`, `canary / lighthouse`, and `canary / deploy` to required status checks
 3. Apply to `main` branch
 
 ## Troubleshooting

@@ -9,7 +9,11 @@ import { computeTargets } from './canary-scope.mjs'
 const SAMPLE_RULES = [
   {
     targets: ['verify'],
-    paths: ['.github/workflows/verify.yml', '.github/workflows/lighthouse.yml'],
+    paths: ['.github/workflows/verify.yml'],
+  },
+  {
+    targets: ['lighthouse'],
+    paths: ['.github/workflows/lighthouse.yml'],
   },
   {
     targets: ['deploy'],
@@ -41,6 +45,12 @@ describe('computeTargets', () => {
       assert.deepStrictEqual(targets, ['deploy'])
     })
 
+    it('returns lighthouse target when lighthouse.yml changes', () => {
+      const paths = ['.github/workflows/lighthouse.yml']
+      const targets = computeTargets(paths, SAMPLE_RULES)
+      assert.deepStrictEqual(targets, ['lighthouse'])
+    })
+
     it('returns both targets when a composite action changes', () => {
       const paths = ['.github/actions/playwright-test/action.yml']
       const targets = computeTargets(paths, SAMPLE_RULES)
@@ -54,6 +64,16 @@ describe('computeTargets', () => {
       ]
       const targets = computeTargets(paths, SAMPLE_RULES)
       assert.deepStrictEqual(targets, ['deploy', 'verify'])
+    })
+
+    it('returns union of all three targets when verify, lighthouse, and deploy change', () => {
+      const paths = [
+        '.github/workflows/verify.yml',
+        '.github/workflows/lighthouse.yml',
+        '.github/workflows/deploy-and-smoke.yml',
+      ]
+      const targets = computeTargets(paths, SAMPLE_RULES)
+      assert.deepStrictEqual(targets, ['deploy', 'lighthouse', 'verify'])
     })
 
     it('deduplicates targets', () => {
@@ -70,7 +90,7 @@ describe('computeTargets', () => {
     it('returns ALL targets when _canary-map.yml is in the diff', () => {
       const paths = ['.github/_canary-map.yml']
       const targets = computeTargets(paths, SAMPLE_RULES)
-      assert.deepStrictEqual(targets, ['deploy', 'verify'])
+      assert.deepStrictEqual(targets, ['deploy', 'lighthouse', 'verify'])
     })
 
     it('returns ALL targets even if other files also changed', () => {
@@ -79,7 +99,7 @@ describe('computeTargets', () => {
         '.github/workflows/verify.yml',
       ]
       const targets = computeTargets(paths, SAMPLE_RULES)
-      assert.deepStrictEqual(targets, ['deploy', 'verify'])
+      assert.deepStrictEqual(targets, ['deploy', 'lighthouse', 'verify'])
     })
   })
 
@@ -87,7 +107,7 @@ describe('computeTargets', () => {
     it('returns ALL targets when a path does not match any rule', () => {
       const paths = ['.github/workflows/unknown.yml']
       const targets = computeTargets(paths, SAMPLE_RULES)
-      assert.deepStrictEqual(targets, ['deploy', 'verify'])
+      assert.deepStrictEqual(targets, ['deploy', 'lighthouse', 'verify'])
     })
 
     it('returns ALL targets when mixing matched and unmatched paths', () => {
@@ -96,13 +116,13 @@ describe('computeTargets', () => {
         'README.md',
       ]
       const targets = computeTargets(paths, SAMPLE_RULES)
-      assert.deepStrictEqual(targets, ['deploy', 'verify'])
+      assert.deepStrictEqual(targets, ['deploy', 'lighthouse', 'verify'])
     })
 
     it('returns ALL targets for root-level file changes', () => {
       const paths = ['package.json']
       const targets = computeTargets(paths, SAMPLE_RULES)
-      assert.deepStrictEqual(targets, ['deploy', 'verify'])
+      assert.deepStrictEqual(targets, ['deploy', 'lighthouse', 'verify'])
     })
   })
 

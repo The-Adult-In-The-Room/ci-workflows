@@ -24,7 +24,7 @@ import { minimatch } from 'minimatch'
 
 // All known targets. If we add a new target, add it here.
 // Sorted alphabetically for consistent output.
-const ALL_TARGETS = ['deploy', 'verify']
+const ALL_TARGETS = ['deploy', 'lighthouse', 'verify']
 
 // The map file itself triggers all targets when changed (fail-safe).
 const MAP_FILE = '.github/_canary-map.yml'
