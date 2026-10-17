@@ -1,0 +1,71 @@
+# Canary dispatcher: dispatches the blog canary workflow on PRs.
+# This workflow is part of the public API for the canary system.
+# It runs on every PR to ci-workflows and dispatches the blog canary
+# to test the reusable workflows against the changes.
+
+name: Canary Dispatcher
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  dispatch:
+    name: dispatch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Fetch full history so we can diff against main
+          fetch-depth: 0
+
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.3.0
+
+      - name: Compute canary targets
+        id: scope
+        run: |
+          # Get list of changed files in this PR
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Compute targets
+          TARGETS=$(node scripts/canary-scope.mjs $CHANGED_FILES)
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          echo "Computed targets: $TARGETS"
+
+      - name: Check if targets are empty
+        id: check
+        run: |
+          TARGETS='${{ steps.scope.outputs.targets }}'
+          if [ "$TARGETS" = "[]" ]; then
+            echo "No canary targets to run"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch to blog canary
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CANARY_PAT: ${{ secrets.CANARY_PAT }}
+          REF: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+          TARGETS: ${{ steps.scope.outputs.targets }}
+        run: |
+          # Dispatch to blog repository
+          curl -X POST \
+            -H "Authorization: token $CANARY_PAT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/The-Adult-In-The-Room/blog/dispatches \
+            -d "{
+              \"event_type\": \"canary\",
+              \"client_payload\": {
+                \"ref\": \"$REF\",
+                \"pr\": $PR,
+                \"targets\": $TARGETS
+              }
+            }"
+          
+          echo "Dispatched canary to blog with targets: $TARGETS"
+          echo "Ref: $REF, PR: $PR"

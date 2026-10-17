@@ -1,0 +1,39 @@
+# Maps changed file paths to canary targets.
+# The canary dispatcher reads this map to determine which workflows to run
+# in the blog canary environment based on what changed in a PR.
+#
+# Targets:
+#   - verify: runs the verify workflow (lint, test, acceptance e2e)
+#   - deploy: runs deploy-and-smoke against the Railway canary environment
+#
+# Fail-safe rules:
+#   - If a changed path doesn't match any rule, ALL targets run
+#   - If this map file itself is changed, ALL targets run
+#   - If a new workflow or composite action is added, it must be added here
+#
+# Keep this in sync when adding workflows or composite actions.
+# Future: contract-checker will enforce coverage (see issue #41).
+
+rules:
+  # Changes to verify workflow trigger only verify target
+  - targets: [verify]
+    paths:
+      - .github/workflows/verify.yml
+      - .github/workflows/lighthouse.yml
+
+  # Changes to deploy workflows trigger only deploy target
+  - targets: [deploy]
+    paths:
+      - .github/workflows/deploy-and-smoke.yml
+      - .github/workflows/smoke.yml
+
+  # Changes to composite actions trigger both targets
+  # (both workflows use these actions)
+  - targets: [verify, deploy]
+    paths:
+      - .github/actions/playwright-test/**
+      - .github/actions/setup-node/**
+
+  # Changes to the map itself trigger all targets (fail-safe)
+  # This rule is implicit: if .github/canary-map.yml is in the diff,
+  # the dispatcher runs all targets regardless of other rules.
