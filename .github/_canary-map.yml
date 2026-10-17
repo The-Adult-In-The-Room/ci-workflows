@@ -20,6 +20,7 @@ rules:
     paths:
       - .github/workflows/verify.yml
       - .github/workflows/lighthouse.yml
+      - .github/workflows/regression.yml
 
   # Changes to deploy workflows trigger only deploy target
   - targets: [deploy]
@@ -39,6 +40,12 @@ rules:
     paths:
       - .github/actions/playwright-test/**
       - .github/actions/setup-node/**
+
+  # Utility workflows don't trigger canary targets
+  # (these are consumer-facing but don't need canary testing)
+  - targets: []
+    paths:
+      - .github/workflows/dependabot-auto-merge.yml
 
   # Other internal workflows (prefixed with _) don't trigger canary targets
   - targets: []

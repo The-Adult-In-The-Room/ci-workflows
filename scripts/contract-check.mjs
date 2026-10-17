@@ -25,6 +25,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseDocument } from 'yaml'
+import { minimatch } from 'minimatch'
 
 // If you fork this repo, update this constant (and the matching Dependabot
 // `ignore` pattern) to your owner/repo, or rule 2 silently stops matching.
@@ -426,6 +427,106 @@ export function checkPaths(paths) {
     )
 }
 
+/**
+ * Rule 8 — canary map coverage.
+ *
+ * Every consumer-facing workflow and composite action must have at least one
+ * rule in `.github/_canary-map.yml`. Internal workflows (prefixed with `_`) are
+ * excluded. The canary dispatcher runs on every PR and uses the map to determine
+ * which workflows to test in the blog canary environment.
+ *
+ * This rule ensures that new workflows and actions are explicitly covered by
+ * the selective dispatch, preventing silent gaps when the map is stale.
+ */
+export function checkCanaryMapCoverage() {
+  const violations = []
+  const cwd = process.cwd()
+  const mapFile = join(cwd, '.github/_canary-map.yml')
+
+  // Read the canary map
+  let mapContent
+  try {
+    mapContent = readFileSync(mapFile, 'utf8')
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      // Map doesn't exist — skip this check
+      return violations
+    }
+    throw error
+  }
+
+  const mapDoc = parseDocument(mapContent)
+  const mapData = mapDoc.toJS()
+  const rules = mapData?.rules || []
+
+  // Collect all paths covered by the map
+  const coveredPaths = new Set()
+  for (const rule of rules) {
+    if (Array.isArray(rule.paths)) {
+      for (const pattern of rule.paths) {
+        coveredPaths.add(pattern)
+      }
+    }
+  }
+
+  // Helper to check if a file is covered by any pattern
+  const isCovered = (filePath) => {
+    for (const pattern of coveredPaths) {
+      if (minimatch(filePath, pattern, { matchBase: false })) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Check consumer-facing workflows
+  const workflowsDir = join(cwd, '.github/workflows')
+  try {
+    const workflows = readdirSync(workflowsDir)
+    for (const workflow of workflows) {
+      if (!workflow.endsWith('.yml') && !workflow.endsWith('.yaml')) continue
+      if (workflow.startsWith('_')) continue // Skip internal workflows
+
+      const workflowPath = `.github/workflows/${workflow}`
+      if (!isCovered(workflowPath)) {
+        violations.push({
+          file: workflowPath,
+          rule: 'canary-map-coverage',
+          message: `consumer-facing workflow \`${workflow}\` is not covered by any rule in \`.github/_canary-map.yml\`; add a rule mapping this file to canary targets`,
+          line: 1,
+          column: 1,
+        })
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+
+  // Check composite actions
+  const actionsDir = join(cwd, '.github/actions')
+  try {
+    const actions = readdirSync(actionsDir, { withFileTypes: true })
+    for (const action of actions) {
+      if (!action.isDirectory()) continue
+
+      const actionPath = `.github/actions/${action.name}`
+      if (!isCovered(actionPath + '/**')) {
+        violations.push({
+          file: actionPath,
+          rule: 'canary-map-coverage',
+          message: `composite action \`${action.name}\` is not covered by any rule in \`.github/_canary-map.yml\`; add a rule mapping this action to canary targets`,
+          line: 1,
+          column: 1,
+        })
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+
+  return violations
+}
+
 function main(argv) {
   const targets = argv.length > 0 ? argv : ['.github']
   let violations
@@ -437,6 +538,15 @@ function main(argv) {
       return 2
     }
     throw error
+  }
+
+  // Add canary map coverage violations
+  try {
+    const canaryViolations = checkCanaryMapCoverage()
+    violations = violations.concat(canaryViolations)
+  } catch (error) {
+    console.error(`contract: error checking canary map coverage: ${error.message}`)
+    return 2
   }
 
   if (violations.length === 0) {
