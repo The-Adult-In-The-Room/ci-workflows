@@ -3,6 +3,9 @@
 # to the PR head commit, and dispatches the blog canary to test the reusable
 # workflows against the changes.
 #
+# Changes to this dispatcher trigger both verify and deploy targets to validate
+# that the dispatcher can correctly orchestrate both workflows.
+#
 # Concurrency: dispatches are serialized. If multiple PRs trigger simultaneously,
 # they queue up instead of racing (which would cause tag conflicts).
 #
