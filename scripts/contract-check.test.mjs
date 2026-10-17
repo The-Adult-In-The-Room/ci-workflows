@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { analyzeSource, checkPaths } from './contract-check.mjs'
+import { analyzeSource, checkPaths, checkCanaryMapCoverage } from './contract-check.mjs'
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url))
 const REPO_ROOT = fileURLToPath(new URL('../', import.meta.url))
@@ -169,5 +169,180 @@ describe('artifact names', () => {
       artifactWorkflow('actions/cache@v4', 'npm-${{ inputs.command }}'),
     )
     assert.deepEqual(violations, [])
+  })
+})
+
+describe('canary map coverage', () => {
+  const tempDir = join(REPO_ROOT, 'test-canary-coverage-temp')
+
+  const setup = (workflows, actions, mapContent) => {
+    // Clean up any existing test directory
+    rmSync(tempDir, { recursive: true, force: true })
+
+    // Create directory structure
+    mkdirSync(join(tempDir, '.github', 'workflows'), { recursive: true })
+    mkdirSync(join(tempDir, '.github', 'actions'), { recursive: true })
+
+    // Write workflows
+    for (const [name, content] of Object.entries(workflows)) {
+      writeFileSync(join(tempDir, '.github', 'workflows', name), content)
+    }
+
+    // Write actions
+    for (const [name, content] of Object.entries(actions)) {
+      mkdirSync(join(tempDir, '.github', 'actions', name), { recursive: true })
+      writeFileSync(join(tempDir, '.github', 'actions', name, 'action.yml'), content)
+    }
+
+    // Write canary map
+    if (mapContent) {
+      writeFileSync(join(tempDir, '.github', '_canary-map.yml'), mapContent)
+    }
+
+    // Change to temp directory for the check
+    const originalCwd = process.cwd()
+    process.chdir(tempDir)
+
+    return () => {
+      process.chdir(originalCwd)
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  }
+
+  it('reports violation when consumer-facing workflow is not in map', () => {
+    const cleanup = setup(
+      {
+        'verify.yml': 'on: workflow_call\njobs: {}',
+        'missing.yml': 'on: workflow_call\njobs: {}',
+      },
+      {},
+      `rules:
+  - targets: [verify]
+    paths:
+      - .github/workflows/verify.yml
+`,
+    )
+
+    try {
+      const violations = checkCanaryMapCoverage()
+      assert.equal(violations.length, 1)
+      assert.equal(violations[0].rule, 'canary-map-coverage')
+      assert.match(violations[0].message, /missing\.yml/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes when all consumer-facing workflows are in map', () => {
+    const cleanup = setup(
+      {
+        'verify.yml': 'on: workflow_call\njobs: {}',
+        'deploy.yml': 'on: workflow_call\njobs: {}',
+      },
+      {},
+      `rules:
+  - targets: [verify]
+    paths:
+      - .github/workflows/verify.yml
+  - targets: [deploy]
+    paths:
+      - .github/workflows/deploy.yml
+`,
+    )
+
+    try {
+      const violations = checkCanaryMapCoverage()
+      assert.equal(violations.length, 0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('ignores internal workflows (prefixed with _)', () => {
+    const cleanup = setup(
+      {
+        'verify.yml': 'on: workflow_call\njobs: {}',
+        '_internal.yml': 'on: workflow_call\njobs: {}',
+      },
+      {},
+      `rules:
+  - targets: [verify]
+    paths:
+      - .github/workflows/verify.yml
+`,
+    )
+
+    try {
+      const violations = checkCanaryMapCoverage()
+      assert.equal(violations.length, 0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('reports violation when composite action is not in map', () => {
+    const cleanup = setup(
+      {
+        'verify.yml': 'on: workflow_call\njobs: {}',
+      },
+      {
+        'test-action': 'name: Test Action\nruns: { using: composite, steps: [] }',
+      },
+      `rules:
+  - targets: [verify]
+    paths:
+      - .github/workflows/verify.yml
+`,
+    )
+
+    try {
+      const violations = checkCanaryMapCoverage()
+      assert.equal(violations.length, 1)
+      assert.equal(violations[0].rule, 'canary-map-coverage')
+      assert.match(violations[0].message, /test-action/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes when composite action is in map', () => {
+    const cleanup = setup(
+      {
+        'verify.yml': 'on: workflow_call\njobs: {}',
+      },
+      {
+        'test-action': 'name: Test Action\nruns: { using: composite, steps: [] }',
+      },
+      `rules:
+  - targets: [verify]
+    paths:
+      - .github/workflows/verify.yml
+      - .github/actions/test-action/**
+`,
+    )
+
+    try {
+      const violations = checkCanaryMapCoverage()
+      assert.equal(violations.length, 0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('handles missing canary map gracefully', () => {
+    const cleanup = setup(
+      {
+        'verify.yml': 'on: workflow_call\njobs: {}',
+      },
+      {},
+      null, // No map file
+    )
+
+    try {
+      const violations = checkCanaryMapCoverage()
+      assert.equal(violations.length, 0)
+    } finally {
+      cleanup()
+    }
   })
 })
