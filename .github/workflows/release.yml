@@ -56,11 +56,11 @@ jobs:
           PREID: ${{ inputs.preid }}
         run: |
           if [ -z "$VERSION" ] && [ -z "$BUMP" ]; then
-            echo "::error::Either `bump` or `version` must be set."
+            echo "::error::Either 'bump' or 'version' must be set."
             exit 1
           fi
           if [ -n "$VERSION" ] && ! echo "$VERSION" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
-            echo "::error::\`$VERSION\` is not a valid semver version."
+            echo "::error::'$VERSION' is not a valid semver version."
             exit 1
           fi
           echo "Inputs OK: bump=$BUMP version=$VERSION preid=$PREID"
@@ -119,7 +119,7 @@ jobs:
           # Reconfigure the remote URL to use the token for authentication.
           # This works for both GITHUB_TOKEN and a PAT.
           REMOTE_URL=$(git remote get-url origin)
-          AUTH_URL=$(echo "$REMOTE_URL" | sed "s|https://github.com/|https://x-access-token:${PUSH_TOKEN}@github.com/|")
+          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/x-access-token:${PUSH_TOKEN}@github.com\/}
           git remote set-url origin "$AUTH_URL"
 
           BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD)
