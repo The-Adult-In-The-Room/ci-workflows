@@ -54,7 +54,14 @@ jobs:
           BUMP: ${{ inputs.bump }}
           VERSION: ${{ inputs.version }}
           PREID: ${{ inputs.preid }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::error::RELEASE_TOKEN secret is required. GITHUB_TOKEN cannot modify workflow files."
+            echo "::error::Create a PAT with 'repo' and 'workflow' scopes, add it as RELEASE_TOKEN secret."
+            echo "::error::See wiki/Release-Process.md for details."
+            exit 1
+          fi
           if [ -z "$VERSION" ] && [ -z "$BUMP" ]; then
             echo "::error::Either 'bump' or 'version' must be set."
             exit 1
@@ -84,18 +91,25 @@ jobs:
           # verification output before committing anything.
           node scripts/release.mjs "${ARGS[@]}"
 
-      - name: Configure git identity
+      - name: Configure git identity and remote
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Reconfigure the remote to authenticate with the PAT. GITHUB_TOKEN
+          # lacks the `workflows` permission, so it cannot push commits that
+          # modify workflow files — which is exactly what a release does when
+          # it bumps internal self-references. The PAT owner must also be an
+          # admin or have bypass permission on the branch protection rules,
+          # because the release commit carries [skip ci] and therefore does
+          # not produce the status checks the ruleset requires.
+          REMOTE_URL=$(git remote get-url origin)
+          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/x-access-token:${RELEASE_TOKEN}@github.com\/}
+          git remote set-url origin "$AUTH_URL"
 
       - name: Commit, tag, and push
         env:
-          # RELEASE_TOKEN is optional. When set (typically a PAT with repo
-          # scope), the push triggers downstream workflows; when unset, the
-          # default GITHUB_TOKEN pushes without triggering them, which is
-          # usually what you want for a release.
-          PUSH_TOKEN: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           BUMP: ${{ inputs.bump }}
           VERSION: ${{ inputs.version }}
           PREID: ${{ inputs.preid }}
@@ -110,17 +124,9 @@ jobs:
             fi
           fi
 
-          # Re-run with --push. The script re-validates and re-verifies,
-          # then commits, tags, and pushes in one atomic operation.
-          # The commit message carries [skip ci] so the push does not
-          # re-trigger Self Check, whose checks this workflow already ran.
-          node scripts/release.mjs "${ARGS[@]}" --push
-
-          # Reconfigure the remote URL to use the token for authentication.
-          # This works for both GITHUB_TOKEN and a PAT.
-          REMOTE_URL=$(git remote get-url origin)
-          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/x-access-token:${PUSH_TOKEN}@github.com\/}
-          git remote set-url origin "$AUTH_URL"
+          # --commit: stage, commit, and tag — but do not push. The workflow
+          # pushes below with the PAT-authenticated remote.
+          node scripts/release.mjs "${ARGS[@]}" --commit
 
           BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD)
           TAG=$(git describe --tags --abbrev=0)
@@ -129,7 +135,7 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           TAG=$(git describe --tags --abbrev=0)
           gh release create "$TAG" \

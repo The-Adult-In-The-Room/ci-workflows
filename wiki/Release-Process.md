@@ -25,7 +25,10 @@ The workflow will:
 # Preview what would change (no commit)
 npm run release minor
 
-# Commit, tag, and push
+# Stage, commit, and tag — but do not push (caller controls the push)
+npm run release minor -- --commit
+
+# Commit, tag, and push (uses your local git credentials)
 npm run release minor -- --push
 
 # Explicit version
@@ -41,11 +44,30 @@ The release script closes the gap that rule 2 of the contract checker cannot see
 
 The script also runs the contract check and tests after rewriting, so a release that breaks the contract fails before it pushes.
 
-### Authentication
+### Authentication (required)
 
-By default, the workflow uses `GITHUB_TOKEN` to push, which does not trigger downstream workflows (like Self Check). This is usually what you want.
+The workflow **requires** a `RELEASE_TOKEN` secret — a GitHub Personal Access Token (PAT). The automatic `GITHUB_TOKEN` cannot be used because:
 
-If you need the release commit to trigger downstream workflows (for example, if you have a wiki-publish workflow that runs on push), set a `RELEASE_TOKEN` secret in the repository settings with `repo` scope. The workflow will use it instead of `GITHUB_TOKEN`.
+1. **`workflows` permission** — The release commit modifies files under `.github/workflows/` (it bumps every internal self-reference). `GITHUB_TOKEN` is a GitHub App installation token, and by default GitHub Apps cannot create or update workflow files. A PAT with the `workflow` scope can.
+
+2. **Branch protection bypass** — The release commit carries `[skip ci]` so it does not re-trigger Self Check (the workflow has already run the contract check and tests inline). This means the commit does not produce the status checks the branch protection ruleset requires. The PAT owner must be a repository admin or be listed as a bypass actor in the ruleset, so the push is allowed through.
+
+#### Creating the PAT
+
+1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta) (or classic tokens)
+2. Create a new token with:
+   - **`repo`** scope (full control of private repositories)
+   - **`workflow`** scope (required to update workflow files)
+3. Add the token as a repository secret named `RELEASE_TOKEN` in [Settings → Secrets and variables → Actions](https://github.com/The-Adult-In-The-Room/ci-workflows/settings/secrets/actions)
+
+#### Branch protection bypass
+
+The PAT owner must be able to bypass the branch protection rules on `main`. Either:
+
+- The PAT owner is a repository admin (admins bypass rules by default), **or**
+- The PAT owner is listed as a bypass actor in the ruleset at [Settings → Rules → Rulesets](https://github.com/The-Adult-In-The-Room/ci-workflows/settings/rules)
+
+If the push fails with `GH013: Repository rule violations found`, the PAT owner lacks bypass permission. Either promote them to admin, or add them to the ruleset's bypass list.
 
 ## Manual release (fallback)
 

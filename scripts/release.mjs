@@ -162,7 +162,10 @@ Arguments:
 
 Options:
   --preid <id>         Pre-release identifier for pre* bumps (e.g. beta, rc)
-  --push               Commit, push, and tag in addition to rewriting files
+  --commit             Stage, commit, and tag — but do not push. Use this when
+                       the caller needs to control the push (e.g. a CI workflow
+                       that must authenticate with a PAT).
+  --push               Commit, tag, AND push (local CLI convenience).
   --target <path>      Directory to rewrite (default: .github)
   --skip-verify        Skip the post-rewrite self-ref verification
 `)
@@ -183,6 +186,7 @@ async function main(argv) {
   const hasFlag = (name) => rest.includes(name)
 
   const preid = flag('--preid')
+  const shouldCommit = hasFlag('--commit') || hasFlag('--push')
   const shouldPush = hasFlag('--push')
   const target = flag('--target') ?? '.github'
   const skipVerify = hasFlag('--skip-verify')
@@ -253,19 +257,31 @@ async function main(argv) {
   }
   console.log('release: contract check passes on the rewritten files.')
 
-  if (!shouldPush) {
-    console.log('\nrelease: files rewritten. Review the diff, then re-run with --push to commit and tag.')
+  if (!shouldCommit) {
+    console.log('\nrelease: files rewritten. Review the diff, then re-run with --commit or --push.')
     return 0
   }
 
-  // --push: commit, tag, push. The commit message carries `[skip ci]` so
-  // the push does not re-trigger the Self Check workflow, whose checks
-  // the release workflow has already run inline against this exact tree.
+  // --commit or --push: stage, commit, and tag. The commit message carries
+  // `[skip ci]` so a push does not re-trigger the Self Check workflow, whose
+  // checks the release workflow has already run inline against this exact tree.
   execSync('git add .github/', { stdio: 'inherit' })
   const commitMessage = `chore(release): pin internal cross-references to ${newTag}`
   execSync(`git commit -m ${JSON.stringify(commitMessage)} -m "[skip ci]"`, { stdio: 'inherit' })
   execSync(`git tag -a ${newTag} -m ${JSON.stringify(`Release ${newTag}`)}`, { stdio: 'inherit' })
 
+  if (!shouldPush) {
+    // --commit: the caller controls the push. This is what the release
+    // workflow uses — it reconfigures the remote with a PAT that has the
+    // `workflows` permission before pushing, because GITHUB_TOKEN cannot
+    // modify workflow files.
+    console.log(`\nrelease: ${newTag} committed and tagged. Push is the caller's responsibility.`)
+    return 0
+  }
+
+  // --push: local CLI convenience. Push with whatever remote URL is already
+  // configured. This works for local development where the user's git
+  // credentials have the necessary permissions.
   let branch
   try {
     branch = execSync('git symbolic-ref --short HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
