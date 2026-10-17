@@ -54,7 +54,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.3.0
 
       - name: Validate inputs
         env:
