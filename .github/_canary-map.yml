@@ -33,6 +33,13 @@ rules:
     paths:
       - .github/workflows/_canary-dispatcher.yml
 
+  # Changes to composite actions trigger both targets
+  # (both workflows use these actions)
+  - targets: [verify, deploy]
+    paths:
+      - .github/actions/playwright-test/**
+      - .github/actions/setup-node/**
+
   # Other internal workflows (prefixed with _) don't trigger canary targets
   - targets: []
     paths:
@@ -49,13 +56,6 @@ rules:
       - package.json
       - package-lock.json
       - wiki/**
-
-  # Changes to composite actions trigger both targets
-  # (both workflows use these actions)
-  - targets: [verify, deploy]
-    paths:
-      - .github/actions/playwright-test/**
-      - .github/actions/setup-node/**
 
   # Changes to the map itself trigger all targets (fail-safe)
   # This rule is implicit: if .github/_canary-map.yml is in the diff,
