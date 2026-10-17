@@ -17,6 +17,7 @@ The workflow will:
 - Rewrite every `The-Adult-In-The-Room/ci-workflows/...@<tag>` ref under `.github/`
 - Run `npm run contract` and `npm test`
 - Commit with `[skip ci]`, create an annotated tag, and push
+- Create a GitHub Release with auto-generated release notes at `https://github.com/The-Adult-In-The-Room/ci-workflows/releases`
 
 ### Via the CLI
 
@@ -117,7 +118,20 @@ git tag v1.1.0
 git push origin main v1.1.0
 ```
 
-### 7. Never move a published tag
+### 7. Create a GitHub Release
+
+After pushing the tag, create a GitHub Release with auto-generated notes:
+
+```bash
+gh release create v1.1.0 \
+  --title "Release v1.1.0" \
+  --generate-notes \
+  --latest
+```
+
+This creates a release at `https://github.com/The-Adult-In-The-Room/ci-workflows/releases` with notes auto-generated from commits since the previous tag.
+
+### 8. Never move a published tag
 
 Once pushed, the tag is immutable. If you discover a problem, cut a new patch release.
 
@@ -135,5 +149,6 @@ Once pushed, the tag is immutable. If you discover a problem, cut a new patch re
 - [ ] `npm run contract` passes (automated by the workflow)
 - [ ] Post-cut verification confirms every ref equals the new tag (automated by the workflow)
 - [ ] Tag created and pushed exactly once (automated by the workflow)
+- [ ] GitHub Release created with auto-generated notes (automated by the workflow)
 - [ ] Wiki updated if needed (source files are in `wiki/`; `publish-wiki.yml` syncs them on push to `main` and on published releases)
 - [ ] Consumer migration issues opened for major releases

@@ -126,3 +126,14 @@ jobs:
           TAG=$(git describe --tags --abbrev=0)
           git push origin "$BRANCH" "$TAG"
           echo "::notice::Released $TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          gh release create "$TAG" \
+            --title "Release $TAG" \
+            --generate-notes \
+            --latest
+          echo "::notice::Created GitHub Release for $TAG"
