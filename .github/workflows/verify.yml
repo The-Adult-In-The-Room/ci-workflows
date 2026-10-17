@@ -2,6 +2,8 @@
 # Consumer reference example:
 #   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.3.0
 # This workflow is part of the public API. Check names, inputs, and secrets are stable.
+#
+# Canary test: minimal change to trigger verify target only.
 
 name: Verify
 
