@@ -7,10 +7,12 @@
 #   - a relative `uses:` in a workflow job (legal: same repo, unlike bug 1)
 #   - a self-reference at an exact tag and at a full SHA
 #   - third-party actions on floating major tags and exact tags
-#   - a required input with no default, used in a `run:` (the shape bug 3's fix
-#     has to keep legal — see the note on rule 3 in contract-check.mjs)
-#   - a bare script name spliced after `npm run`
-#   - a whole command including `npm run`, spliced without a literal prefix
+#   - a required input with no default, routed through `env:` into a `run:`
+#     (the shape rule 3's fix has to keep legal — see the note on rule 3 in
+#     contract-check.mjs — and rule 7 requires env routing even for required
+#     inputs, so the safe pattern is shown here)
+#   - a bare script name spliced after `npm run`, routed through `env:` (rule 7)
+#   - a whole command including `npm run`, spliced through `env:` (rule 7)
 #   - a documented required secret
 #   - an artifact name derived in a step and read from `steps.*.outputs.*`,
 #     which is rule 6's fix for bug 5 and must stay legal
@@ -47,9 +49,15 @@ jobs:
       - uses: rhysd/actionlint@v1.7.12
       - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v1.0.0
       - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@0123456789abcdef0123456789abcdef01234567
-      - run: npm run ${{ inputs.command }}
-      - run: ${{ inputs.build-command }}
-      - run: echo ${{ inputs.token }}
+      - run: npm run "$COMMAND"
+        env:
+          COMMAND: ${{ inputs.command }}
+      - run: "$BUILD_COMMAND"
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
+      - run: echo "$TOKEN"
+        env:
+          TOKEN: ${{ inputs.token }}
 
       # Legal: the command reaches a step, and the step derives an
       # artifact-safe name from it. Rule 6 flags `inputs.*` in the *name*,

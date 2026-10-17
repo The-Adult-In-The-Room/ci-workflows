@@ -20,8 +20,10 @@ runs:
       shell: bash
 
     - name: Run e2e tests
-      run: npm run ${{ inputs.command }}
+      run: npm run "$COMMAND"
       shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
 
     # Artifact names must be filesystem-agnostic: upload-artifact rejects
     # " : < > | * ? \r \n \ / outright, because downloads land on NTFS volumes

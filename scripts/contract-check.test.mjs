@@ -21,13 +21,14 @@ const rulesFor = (fixture) => {
  */
 const EXPECTED = {
   'bug-1-relative-uses.yml': ['no-relative-uses-in-composite-action'],
-  'bug-2-double-npm-run.yml': ['script-name-discipline'],
+  'bug-2-double-npm-run.yml': ['no-inputs-in-run-body', 'script-name-discipline'],
   'bug-3-undocumented-secret.yml': ['required-secrets-documented'],
   'bug-4-floating-ref.yml': ['no-branch-refs-for-self-references'],
   'bug-5-colon-artifact-name.yml': ['artifact-name-safety'],
-  'r3-missing-type.yml': ['input-completeness'],
+  'bug-6-input-in-run-body.yml': ['no-inputs-in-run-body'],
+  'r3-missing-type.yml': ['input-completeness', 'no-inputs-in-run-body'],
   'r3-omittable-input.yml': ['input-completeness'],
-  'r3-undeclared-input.yml': ['input-completeness'],
+  'r3-undeclared-input.yml': ['input-completeness', 'no-inputs-in-run-body'],
 }
 
 const fixtureNames = readdirSync(FIXTURES)
@@ -105,8 +106,8 @@ describe('input resolution', () => {
       workflowWith('      days:\n        type: string\n', 'echo ${{ fromJson(inputs.days) }}'),
     )
     assert.deepEqual(
-      violations.map((violation) => violation.rule),
-      ['input-completeness'],
+      violations.map((violation) => violation.rule).sort(),
+      ['input-completeness', 'no-inputs-in-run-body'].sort(),
     )
   })
 
@@ -125,8 +126,8 @@ describe('input resolution', () => {
       ),
     )
     assert.deepEqual(
-      violations.map((violation) => violation.rule),
-      ['script-name-discipline'],
+      violations.map((violation) => violation.rule).sort(),
+      ['no-inputs-in-run-body', 'script-name-discipline'].sort(),
     )
   })
 })
