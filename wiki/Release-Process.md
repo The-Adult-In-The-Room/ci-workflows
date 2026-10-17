@@ -2,11 +2,11 @@ How to publish a new version of `ci-workflows`.
 
 ## Automated release (recommended)
 
-The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/release.yml) automates the mechanical parts: validating the version, rewriting internal refs, running the contract check and tests, committing, tagging, and pushing.
+The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/_release.yml) automates the mechanical parts: validating the version, rewriting internal refs, running the contract check and tests, committing, tagging, and pushing.
 
 ### Via the GitHub UI
 
-1. Go to [Actions → Release](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/release.yml)
+1. Go to [Actions → Release](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/_release.yml)
 2. Click **Run workflow**
 3. Choose a `bump` keyword (`patch`, `minor`, `major`, etc.) or enter an explicit `version`
 4. For pre-releases, optionally set `preid` (e.g. `beta`, `rc`)
@@ -180,5 +180,5 @@ Once pushed, the tag is immutable. If you discover a problem, cut a new patch re
 - [ ] Post-cut verification confirms every ref equals the new tag (automated by the workflow)
 - [ ] Tag created and pushed exactly once (automated by the workflow)
 - [ ] GitHub Release created with auto-generated notes (automated by the workflow)
-- [ ] Wiki updated if needed (source files are in `wiki/`; `publish-wiki.yml` syncs them on push to `main` and on published releases)
+- [ ] Wiki updated if needed (source files are in `wiki/`; `_publish-wiki.yml` syncs them on push to `main` and on published releases)
 - [ ] Consumer migration issues opened for major releases

@@ -81,4 +81,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Legal in a workflow: resolves inside this repo, not the consumer's.
-      - uses: ./.github/workflows/self-check.yml
+      - uses: ./.github/workflows/_self-check.yml

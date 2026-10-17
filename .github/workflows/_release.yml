@@ -1,3 +1,6 @@
+# Internal workflow: runs in this repo only. Not part of the public API.
+# Cuts a semver release: rewrites internal refs, runs checks, tags, and pushes.
+
 name: Release
 
 on:

@@ -1,3 +1,6 @@
+# Internal workflow: runs in this repo only. Not part of the public API.
+# PR gate for this repo: lint workflows and run the contract checker.
+
 name: Self Check
 
 on:
