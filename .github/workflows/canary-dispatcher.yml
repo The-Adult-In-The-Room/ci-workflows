@@ -53,8 +53,8 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           TARGETS: ${{ steps.scope.outputs.targets }}
         run: |
-          # Dispatch to blog repository
-          curl -X POST \
+          # -f: return non-zero on HTTP 4xx/5xx (otherwise curl exits 0 on any completed request)
+          curl -f -X POST \
             -H "Authorization: token $CANARY_PAT" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/The-Adult-In-The-Room/blog/dispatches \
@@ -66,6 +66,3 @@ jobs:
                 \"targets\": $TARGETS
               }
             }"
-          
-          echo "Dispatched canary to blog with targets: $TARGETS"
-          echo "Ref: $REF, PR: $PR"
