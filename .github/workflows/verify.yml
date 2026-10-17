@@ -106,3 +106,5 @@ jobs:
           echo "lighthouse result: ${{ needs.lighthouse.result }}"
           exit 1
       - run: echo "Verify workflow passed."
+
+# Test: trigger verify-only canary scenario
