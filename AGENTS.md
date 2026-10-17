@@ -68,6 +68,8 @@ When cutting a release:
 4. Never move a tag after publishing.
 5. For breaking changes (renamed input, changed default, renamed check), cut a major version (`v2.0.0`) and let consumers opt in via reviewed PRs.
 
+The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/release.yml) automates steps 1–3: it rewrites internal refs, runs the contract check and tests, verifies every ref matches the new tag, then commits, tags, and pushes. See `wiki/Release-Process.md` for CLI usage and the manual fallback.
+
 ## Cross-repo consistency
 
 When working in this repo, always ask: "How does this change affect blog, portfolio, and poe2-tools?" If a change requires consumers to update their inputs, scripts, or check names, it is a breaking change and needs a major version bump plus migration notes.

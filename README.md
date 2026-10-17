@@ -91,5 +91,7 @@ For full setup instructions — including smoke tests, regression tests, Dependa
 
 Consumers pin to an **immutable semver tag**, never a branch. Tags are not moved once published.
 
-See the [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) wiki page for the full release checklist, including how to update internal cross-references.
+The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/release.yml) automates the release process: it validates the version bump, rewrites every internal self-reference to the new tag, runs the contract check and tests, verifies every ref matches the tag just cut, then commits, tags, and pushes in one atomic operation. This closes the gap that rule 2 of the contract checker cannot see — shipping a tag whose own workflows still reference the previous release.
+
+See the [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) wiki page for the full guide, including CLI usage and the manual fallback.
 
