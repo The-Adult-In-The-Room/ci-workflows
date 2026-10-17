@@ -27,6 +27,12 @@ rules:
       - .github/workflows/deploy-and-smoke.yml
       - .github/workflows/smoke.yml
 
+  # Internal workflows (not reusable by consumers) don't trigger canary targets
+  - targets: []
+    paths:
+      - .github/workflows/canary-dispatcher.yml
+      - .github/workflows/_*.yml
+
   # Changes to composite actions trigger both targets
   # (both workflows use these actions)
   - targets: [verify, deploy]
