@@ -27,10 +27,11 @@ rules:
       - .github/workflows/deploy-and-smoke.yml
       - .github/workflows/smoke.yml
 
-  # Internal workflows (prefixed with _) don't trigger canary targets
-  - targets: []
+  # Changes to the canary dispatcher trigger both targets
+  # (validates the dispatcher can correctly orchestrate both workflows)
+  - targets: [verify, deploy]
     paths:
-      - .github/workflows/_*.yml
+      - .github/workflows/_canary-dispatcher.yml
 
   # Changes to composite actions trigger both targets
   # (both workflows use these actions)
@@ -38,6 +39,23 @@ rules:
     paths:
       - .github/actions/playwright-test/**
       - .github/actions/setup-node/**
+
+  # Other internal workflows (prefixed with _) don't trigger canary targets
+  - targets: []
+    paths:
+      - .github/workflows/_*.yml
+
+  # Non-workflow files don't trigger canary targets
+  - targets: []
+    paths:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
+      - .gitignore
+      - .nvmrc
+      - package.json
+      - package-lock.json
+      - wiki/**
 
   # Changes to the map itself trigger all targets (fail-safe)
   # This rule is implicit: if .github/_canary-map.yml is in the diff,
