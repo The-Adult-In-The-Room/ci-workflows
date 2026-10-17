@@ -77,6 +77,7 @@ jobs:
         env:
           CANARY_PAT: ${{ secrets.CANARY_PAT }}
           PR: ${{ github.event.pull_request.number }}
+          REF: ${{ github.event.pull_request.head.sha }}
           TARGETS: ${{ steps.scope.outputs.targets }}
         run: |
           # -f: return non-zero on HTTP 4xx/5xx (otherwise curl exits 0 on any completed request)
@@ -88,9 +89,11 @@ jobs:
               \"event_type\": \"canary\",
               \"client_payload\": {
                 \"pr\": $PR,
+                \"ref\": \"$REF\",
                 \"targets\": $TARGETS
               }
             }"
           
           echo "Dispatched canary to blog with targets: $TARGETS"
           echo "PR: $PR"
+          echo "REF: $REF"
