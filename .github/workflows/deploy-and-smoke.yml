@@ -275,3 +275,5 @@ jobs:
           echo "Rollback deployment did not reach SUCCESS within ${DEPLOY_TIMEOUT} minutes."
           exit 1
         shell: bash
+
+# Test: trigger deploy-only canary scenario
