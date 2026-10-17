@@ -5,6 +5,10 @@
 #
 # Concurrency: dispatches are serialized. If multiple PRs trigger simultaneously,
 # they queue up instead of racing (which would cause tag conflicts).
+#
+# Status checks: Always posts status checks for all targets. If a target isn't
+# run, posts "skipped" status. This allows canary checks to be required in
+# branch protection rules.
 
 name: Canary Dispatcher
 
@@ -55,6 +59,58 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Post skipped status for unneeded targets
+        if: always()
+        env:
+          CANARY_PAT: ${{ secrets.CANARY_PAT }}
+          REF: ${{ github.event.pull_request.head.sha }}
+          TARGETS: ${{ steps.scope.outputs.targets }}
+        run: |
+          # Define all possible targets
+          ALL_TARGETS='["verify", "deploy"]'
+          
+          # Use Node.js to check which targets are needed and post skipped status
+          node -e "
+          const targets = new Set($TARGETS);
+          const allTargets = $ALL_TARGETS;
+          
+          async function postStatus(context, state, description) {
+            const response = await fetch(
+              'https://api.github.com/repos/The-Adult-In-The-Room/ci-workflows/statuses/$REF',
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': 'token $CANARY_PAT',
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  state: state,
+                  description: description,
+                  context: context
+                })
+              }
+            );
+            
+            if (!response.ok) {
+              console.error('Failed to post status for ' + context + ': ' + response.status);
+              process.exit(1);
+            }
+            
+            console.log('Posted ' + state + ' status for ' + context);
+          }
+          
+          async function main() {
+            for (const target of allTargets) {
+              if (!targets.has(target)) {
+                await postStatus('canary / ' + target, 'success', 'Canary target skipped (no relevant changes)');
+              }
+            }
+          }
+          
+          main();
+          "
+
       - name: Move canary tag to PR head
         if: steps.check.outputs.skip != 'true'
         env:
@@ -77,6 +133,7 @@ jobs:
         env:
           CANARY_PAT: ${{ secrets.CANARY_PAT }}
           PR: ${{ github.event.pull_request.number }}
+          REF: ${{ github.event.pull_request.head.sha }}
           TARGETS: ${{ steps.scope.outputs.targets }}
         run: |
           # -f: return non-zero on HTTP 4xx/5xx (otherwise curl exits 0 on any completed request)
@@ -88,9 +145,11 @@ jobs:
               \"event_type\": \"canary\",
               \"client_payload\": {
                 \"pr\": $PR,
+                \"ref\": \"$REF\",
                 \"targets\": $TARGETS
               }
             }"
           
           echo "Dispatched canary to blog with targets: $TARGETS"
           echo "PR: $PR"
+          echo "REF: $REF"
