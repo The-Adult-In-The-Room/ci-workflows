@@ -54,11 +54,19 @@ The workflow **requires** a `RELEASE_TOKEN` secret — a GitHub Personal Access 
 
 #### Creating the PAT
 
-1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta) (or classic tokens)
+1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens/new)
+   - **Important**: Use the "Tokens (classic)" page, not fine-grained tokens
+   - Fine-grained tokens are GitHub App installation tokens and cannot modify workflow files
 2. Create a new token with:
-   - **`repo`** scope (full control of private repositories)
-   - **`workflow`** scope (required to update workflow files)
-3. Add the token as a repository secret named `RELEASE_TOKEN` in [Settings → Secrets and variables → Actions](https://github.com/The-Adult-In-The-Room/ci-workflows/settings/secrets/actions)
+   - **Note**: "Release workflow" (or similar)
+   - **Expiration**: 90 days (or your preferred duration)
+   - **Select scopes**:
+     - **`repo`** (full control of private repositories)
+     - **`workflow`** (required to update workflow files)
+3. Click **Generate token** and copy it immediately (you won't see it again)
+4. Add the token as a repository secret named `RELEASE_TOKEN` in [Settings → Secrets and variables → Actions](https://github.com/The-Adult-In-The-Room/ci-workflows/settings/secrets/actions)
+
+**Why classic tokens?** The workflow uses `persist-credentials: false` in the checkout step to prevent GitHub Actions from embedding its own `GITHUB_TOKEN` in the git remote URL. Then we inject the classic PAT to authenticate the push. Classic PATs are treated as the token owner (you), which allows them to bypass branch protection rules when the owner has admin privileges. Fine-grained tokens are treated as GitHub App installation tokens, which cannot modify workflow files regardless of permissions.
 
 #### Branch protection bypass
 
