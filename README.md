@@ -48,7 +48,7 @@ Use `CI / verify` in branch protection and in the Dependabot auto-merger so the 
 
 ## Self-check
 
-This repository gates its own changes with `Self Check`, which runs two independently-required jobs:
+This repository gates its own changes with `Self Check` (`.github/workflows/_self-check.yml`), which runs two independently-required jobs:
 
 | Check | What it enforces |
 | --- | --- |
@@ -91,7 +91,7 @@ For full setup instructions — including smoke tests, regression tests, Dependa
 
 Consumers pin to an **immutable semver tag**, never a branch. Tags are not moved once published.
 
-The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/release.yml) automates the release process: it validates the version bump, rewrites every internal self-reference to the new tag, runs the contract check and tests, verifies every ref matches the tag just cut, then commits, tags, pushes, and creates a GitHub Release with auto-generated notes. This closes the gap that rule 2 of the contract checker cannot see — shipping a tag whose own workflows still reference the previous release.
+The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/_release.yml) automates the release process: it validates the version bump, rewrites every internal self-reference to the new tag, runs the contract check and tests, verifies every ref matches the tag just cut, then commits, tags, pushes, and creates a GitHub Release with auto-generated notes. This closes the gap that rule 2 of the contract checker cannot see — shipping a tag whose own workflows still reference the previous release.
 
 The workflow requires a `RELEASE_TOKEN` secret (a PAT with `repo` and `workflow` scopes). See the [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) wiki page for setup details.
 

@@ -36,6 +36,8 @@ All e2e jobs use [Lightpanda](https://github.com/lightpanda-io/browser) for fast
 
 ## Workflows and actions in this repo
 
+Reusable workflows (consumers reference these via `workflow_call`):
+
 | Kind | Name | Path | Purpose |
 |------|------|------|---------|
 | Composite action | `setup-node` | `.github/actions/setup-node` | Install Node.js from `.nvmrc` and run `npm ci`. |
@@ -46,6 +48,14 @@ All e2e jobs use [Lightpanda](https://github.com/lightpanda-io/browser) for fast
 | Reusable workflow | `regression` | `.github/workflows/regression.yml` | Scheduled regression tests against a production URL. |
 | Reusable workflow | `dependabot-auto-merge` | `.github/workflows/dependabot-auto-merge.yml` | Auto-merge Dependabot PRs after `CI / verify` passes. |
 | Reusable workflow | `lighthouse` | `.github/workflows/lighthouse.yml` | Run Lighthouse CI against a build. |
+
+Internal workflows (prefixed with `_`; these run in this repo only and are not part of the public API):
+
+| Name | Path | Purpose |
+|------|------|---------|
+| `_release` | `.github/workflows/_release.yml` | Cut a semver release: rewrite internal refs, run checks, tag, and push. |
+| `_publish-wiki` | `.github/workflows/_publish-wiki.yml` | Sync `wiki/` to the GitHub wiki on push to `main` and on published releases. |
+| `_self-check` | `.github/workflows/_self-check.yml` | PR gate for this repo: lint workflows and run the contract checker. |
 
 ## Contract validation
 
@@ -63,12 +73,12 @@ The contract checker lives in `scripts/contract-check.mjs` and enforces six rule
 When cutting a release:
 
 1. Update internal `The-Adult-In-The-Room/ci-workflows/…@<tag>` refs to the new tag in the same commit.
-2. Update `wiki/` if the release changes consumer-facing behavior, inputs, or check names. The `publish-wiki.yml` workflow syncs `wiki/` to the GitHub wiki on every push to `main` and on every published release.
+2. Update `wiki/` if the release changes consumer-facing behavior, inputs, or check names. The `_publish-wiki.yml` workflow syncs `wiki/` to the GitHub wiki on every push to `main` and on every published release.
 3. Create an exact semver tag, e.g. `v1.0.2` or `v2.0.0`.
 4. Never move a tag after publishing.
 5. For breaking changes (renamed input, changed default, renamed check), cut a major version (`v2.0.0`) and let consumers opt in via reviewed PRs.
 
-The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/release.yml) automates steps 1–3: it rewrites internal refs, runs the contract check and tests, verifies every ref matches the new tag, then commits, tags, and pushes. See `wiki/Release-Process.md` for CLI usage and the manual fallback.
+The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/actions/workflows/_release.yml) automates steps 1–3: it rewrites internal refs, runs the contract check and tests, verifies every ref matches the new tag, then commits, tags, and pushes. See `wiki/Release-Process.md` for CLI usage and the manual fallback.
 
 ## Cross-repo consistency
 

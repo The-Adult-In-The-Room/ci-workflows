@@ -1,3 +1,8 @@
+# Reusable workflow: consumers call this via `workflow_call` from their own repos.
+# Consumer reference example:
+#   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.3.0
+# This workflow is part of the public API. Check names, inputs, and secrets are stable.
+
 name: Verify
 
 on:

@@ -21,7 +21,7 @@
 //      and the tool exits non-zero before the damage reaches consumers.
 //
 // This script is the single source of truth for both. `npm run release`
-// runs it locally; `.github/workflows/release.yml` runs it in CI. Same
+// runs it locally; `.github/workflows/_release.yml` runs it in CI. Same
 // code path, same guarantees.
 
 import { execSync } from 'node:child_process'
