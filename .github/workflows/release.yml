@@ -97,15 +97,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Reconfigure the remote to authenticate with the PAT. GITHUB_TOKEN
-          # lacks the `workflows` permission, so it cannot push commits that
-          # modify workflow files — which is exactly what a release does when
-          # it bumps internal self-references. The PAT owner must also be an
-          # admin or have bypass permission on the branch protection rules,
-          # because the release commit carries [skip ci] and therefore does
-          # not produce the status checks the ruleset requires.
+          # Reconfigure the remote to authenticate with the classic PAT.
+          # Classic PATs are used directly in the URL without a username prefix.
+          # The PAT owner must be a repository admin or have bypass permission
+          # on the branch protection rules, because the release commit carries
+          # [skip ci] and therefore does not produce the status checks the
+          # ruleset requires.
           REMOTE_URL=$(git remote get-url origin)
-          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/x-access-token:${RELEASE_TOKEN}@github.com\/}
+          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/${RELEASE_TOKEN}@github.com\/}
           git remote set-url origin "$AUTH_URL"
 
       - name: Commit, tag, and push
