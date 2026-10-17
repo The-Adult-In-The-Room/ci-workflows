@@ -32,6 +32,18 @@ rules:
     paths:
       - .github/workflows/_*.yml
 
+  # Non-workflow files don't trigger canary targets
+  - targets: []
+    paths:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
+      - .gitignore
+      - .nvmrc
+      - package.json
+      - package-lock.json
+      - wiki/**
+
   # Changes to composite actions trigger both targets
   # (both workflows use these actions)
   - targets: [verify, deploy]

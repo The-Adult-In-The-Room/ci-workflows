@@ -95,3 +95,5 @@ The [Release workflow](https://github.com/The-Adult-In-The-Room/ci-workflows/act
 
 The workflow requires a `RELEASE_TOKEN` secret (a PAT with `repo` and `workflow` scopes). See the [Release Process](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Release-Process) wiki page for setup details.
 
+
+Test: This change should skip canary checks
