@@ -13,6 +13,7 @@
     "test": "node --test \"scripts/**/*.test.mjs\""
   },
   "dependencies": {
+    "minimatch": "^10.2.6",
     "semver": "^7.7.0"
   },
   "devDependencies": {

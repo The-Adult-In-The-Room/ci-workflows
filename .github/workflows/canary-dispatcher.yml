@@ -1,0 +1,96 @@
+# Canary dispatcher: dispatches the blog canary workflow on PRs.
+# This workflow runs on every PR to ci-workflows, moves the `canary` tag
+# to the PR head commit, and dispatches the blog canary to test the reusable
+# workflows against the changes.
+#
+# Concurrency: dispatches are serialized. If multiple PRs trigger simultaneously,
+# they queue up instead of racing (which would cause tag conflicts).
+
+name: Canary Dispatcher
+
+on:
+  pull_request:
+    branches: [main]
+
+# Serialize dispatches to prevent tag races
+concurrency:
+  group: canary-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: dispatch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Fetch full history so we can diff against main
+          fetch-depth: 0
+          # Use PAT for tag manipulation (needs contents:write on ci-workflows)
+          token: ${{ secrets.CANARY_PAT }}
+
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.3.0
+
+      - name: Compute canary targets
+        id: scope
+        run: |
+          # Get list of changed files in this PR as an array
+          mapfile -t CHANGED_FILES < <(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          printf '%s\n' "${CHANGED_FILES[@]}"
+          
+          # Compute targets
+          TARGETS=$(node scripts/canary-scope.mjs "${CHANGED_FILES[@]}")
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          echo "Computed targets: $TARGETS"
+
+      - name: Check if targets are empty
+        id: check
+        run: |
+          TARGETS='${{ steps.scope.outputs.targets }}'
+          if [ "$TARGETS" = "[]" ]; then
+            echo "No canary targets to run"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Move canary tag to PR head
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CANARY_PAT: ${{ secrets.CANARY_PAT }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Configure git to use PAT for authentication
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          # Delete existing canary tag (if any) and create new one on PR head
+          git push origin :refs/tags/canary 2>/dev/null || true
+          git tag -f canary "$PR_HEAD_SHA"
+          git push origin canary
+          
+          echo "Moved canary tag to $PR_HEAD_SHA"
+
+      - name: Dispatch to blog canary
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CANARY_PAT: ${{ secrets.CANARY_PAT }}
+          PR: ${{ github.event.pull_request.number }}
+          TARGETS: ${{ steps.scope.outputs.targets }}
+        run: |
+          # -f: return non-zero on HTTP 4xx/5xx (otherwise curl exits 0 on any completed request)
+          curl -f -X POST \
+            -H "Authorization: token $CANARY_PAT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/The-Adult-In-The-Room/blog/dispatches \
+            -d "{
+              \"event_type\": \"canary\",
+              \"client_payload\": {
+                \"pr\": $PR,
+                \"targets\": $TARGETS
+              }
+            }"
+          
+          echo "Dispatched canary to blog with targets: $TARGETS"
+          echo "PR: $PR"
