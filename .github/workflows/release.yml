@@ -44,8 +44,15 @@ jobs:
       - uses: actions/checkout@v7
         # Fetch full history so `git describe` can find the latest tag and
         # the push can reach origin without shallow-clone surprises.
+        # `persist-credentials: false` stops checkout from embedding GITHUB_TOKEN
+        # in the remote URL. If we leave it on, the URL becomes
+        # `https://x-access-token:<GITHUB_TOKEN>@github.com/...`, which is a
+        # GitHub App token — and GitHub Apps cannot modify workflow files. We
+        # want the remote to stay as `https://github.com/...` so the later
+        # substitution can inject the classic PAT instead.
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
 
@@ -97,15 +104,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Reconfigure the remote to authenticate with the PAT. GITHUB_TOKEN
-          # lacks the `workflows` permission, so it cannot push commits that
-          # modify workflow files — which is exactly what a release does when
-          # it bumps internal self-references. The PAT owner must also be an
-          # admin or have bypass permission on the branch protection rules,
-          # because the release commit carries [skip ci] and therefore does
-          # not produce the status checks the ruleset requires.
+          # Reconfigure the remote to authenticate with the classic PAT.
+          # Classic PATs are used directly in the URL without a username prefix.
+          # The PAT owner must be a repository admin or have bypass permission
+          # on the branch protection rules, because the release commit carries
+          # [skip ci] and therefore does not produce the status checks the
+          # ruleset requires.
           REMOTE_URL=$(git remote get-url origin)
-          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/x-access-token:${RELEASE_TOKEN}@github.com\/}
+          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/${RELEASE_TOKEN}@github.com\/}
           git remote set-url origin "$AUTH_URL"
 
       - name: Commit, tag, and push
