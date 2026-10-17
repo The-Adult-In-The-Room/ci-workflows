@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: >-
+          Semver bump keyword. Choose one of: patch, minor, major, prepatch,
+          preminor, premajor, prerelease. Ignored when `version` is set.
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prepatch
+          - preminor
+          - premajor
+          - prerelease
+        default: patch
+      version:
+        description: >-
+          Explicit semver version (e.g. v2.3.0). When set, overrides `bump`.
+          Use this for pre-releases or non-standard version numbers.
+        required: false
+        type: string
+        default: ""
+      preid:
+        description: >-
+          Pre-release identifier for pre* bumps (e.g. beta, rc). Only used
+          when `bump` is a pre* keyword and `version` is empty.
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        # Fetch full history so `git describe` can find the latest tag and
+        # the push can reach origin without shallow-clone surprises.
+        with:
+          fetch-depth: 0
+
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
+
+      - name: Validate inputs
+        env:
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+          PREID: ${{ inputs.preid }}
+        run: |
+          if [ -z "$VERSION" ] && [ -z "$BUMP" ]; then
+            echo "::error::Either 'bump' or 'version' must be set."
+            exit 1
+          fi
+          if [ -n "$VERSION" ] && ! echo "$VERSION" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$VERSION' is not a valid semver version."
+            exit 1
+          fi
+          echo "Inputs OK: bump=$BUMP version=$VERSION preid=$PREID"
+
+      - name: Rewrite self-references and verify
+        env:
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+          PREID: ${{ inputs.preid }}
+        run: |
+          ARGS=()
+          if [ -n "$VERSION" ]; then
+            ARGS+=("$VERSION")
+          else
+            ARGS+=("$BUMP")
+            if [ -n "$PREID" ]; then
+              ARGS+=("--preid" "$PREID")
+            fi
+          fi
+          # Run without --push first so we can inspect the diff and the
+          # verification output before committing anything.
+          node scripts/release.mjs "${ARGS[@]}"
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit, tag, and push
+        env:
+          # RELEASE_TOKEN is optional. When set (typically a PAT with repo
+          # scope), the push triggers downstream workflows; when unset, the
+          # default GITHUB_TOKEN pushes without triggering them, which is
+          # usually what you want for a release.
+          PUSH_TOKEN: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+          PREID: ${{ inputs.preid }}
+        run: |
+          ARGS=()
+          if [ -n "$VERSION" ]; then
+            ARGS+=("$VERSION")
+          else
+            ARGS+=("$BUMP")
+            if [ -n "$PREID" ]; then
+              ARGS+=("--preid" "$PREID")
+            fi
+          fi
+
+          # Re-run with --push. The script re-validates and re-verifies,
+          # then commits, tags, and pushes in one atomic operation.
+          # The commit message carries [skip ci] so the push does not
+          # re-trigger Self Check, whose checks this workflow already ran.
+          node scripts/release.mjs "${ARGS[@]}" --push
+
+          # Reconfigure the remote URL to use the token for authentication.
+          # This works for both GITHUB_TOKEN and a PAT.
+          REMOTE_URL=$(git remote get-url origin)
+          AUTH_URL=${REMOTE_URL/https:\/\/github.com\//https:\/\/x-access-token:${PUSH_TOKEN}@github.com\/}
+          git remote set-url origin "$AUTH_URL"
+
+          BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+          TAG=$(git describe --tags --abbrev=0)
+          git push origin "$BRANCH" "$TAG"
+          echo "::notice::Released $TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          gh release create "$TAG" \
+            --title "Release $TAG" \
+            --generate-notes \
+            --latest
+          echo "::notice::Created GitHub Release for $TAG"

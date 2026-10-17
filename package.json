@@ -9,7 +9,11 @@
   },
   "scripts": {
     "contract": "node scripts/contract-check.mjs",
+    "release": "node scripts/release.mjs",
     "test": "node --test \"scripts/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "semver": "^7.7.0"
   },
   "devDependencies": {
     "yaml": "2.9.1"
