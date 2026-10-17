@@ -47,7 +47,9 @@ jobs:
       - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.2.0
         with:
           node-version-file: ${{ inputs.node-version-file }}
-      - run: ${{ inputs.verify-command }}
+      - run: "$VERIFY_COMMAND"
+        env:
+          VERIFY_COMMAND: ${{ inputs.verify-command }}
 
   acceptance:
     name: acceptance
@@ -77,9 +79,13 @@ jobs:
         with:
           node-version-file: ${{ inputs.node-version-file }}
       - name: Build
-        run: ${{ inputs.build-command }}
+        run: "$BUILD_COMMAND"
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
       - name: Run Lighthouse CI
-        run: ${{ inputs.lhci-command }}
+        run: "$LHCI_COMMAND"
+        env:
+          LHCI_COMMAND: ${{ inputs.lhci-command }}
 
   verify:
     name: verify

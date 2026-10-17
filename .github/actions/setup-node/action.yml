@@ -18,5 +18,7 @@ runs:
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: npm
-    - run: ${{ inputs.install-command }}
+    - run: "$INSTALL_COMMAND"
       shell: bash
+      env:
+        INSTALL_COMMAND: ${{ inputs.install-command }}

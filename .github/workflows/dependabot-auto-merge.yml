@@ -42,7 +42,8 @@ jobs:
           wait-interval: 10
           checks-discovery-timeout: ${{ inputs.checks-discovery-timeout }}
 
-      - run: gh pr merge --auto --${{ inputs.merge-method }} "$PR_URL"
+      - run: gh pr merge --auto --"$MERGE_METHOD" "$PR_URL"
         env:
+          MERGE_METHOD: ${{ inputs.merge-method }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

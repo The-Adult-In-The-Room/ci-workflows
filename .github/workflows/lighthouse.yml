@@ -42,9 +42,12 @@ jobs:
           node-version-file: ${{ inputs.node-version-file }}
 
       - name: Build
-        run: ${{ inputs.build-command }}
+        run: "$BUILD_COMMAND"
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
 
       - name: Run Lighthouse CI
-        run: ${{ inputs.lhci-command }}
+        run: "$LHCI_COMMAND"
         env:
+          LHCI_COMMAND: ${{ inputs.lhci-command }}
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.lhci-github-app-token }}

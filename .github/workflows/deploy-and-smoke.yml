@@ -112,9 +112,11 @@ jobs:
         shell: bash
 
       - name: Wait for deployment success
+        env:
+          DEPLOY_TIMEOUT: ${{ inputs.deploy-timeout }}
         run: |
           DEPLOYMENT_ID="${{ steps.deploy.outputs.deployment-id }}"
-          END_TIME=$(($(date +%s) + ${{ inputs.deploy-timeout }} * 60))
+          END_TIME=$(($(date +%s) + DEPLOY_TIMEOUT * 60))
 
           while [ "$(date +%s)" -lt "$END_TIME" ]; do
             STATUS=$(railway deployment list --json \
@@ -142,16 +144,18 @@ jobs:
             sleep 10
           done
 
-          echo "Deployment ${DEPLOYMENT_ID} did not reach SUCCESS within ${{ inputs.deploy-timeout }} minutes."
+          echo "Deployment ${DEPLOYMENT_ID} did not reach SUCCESS within ${DEPLOY_TIMEOUT} minutes."
           exit 1
         shell: bash
 
       - name: Discover smoke target URL
         id: url
+        env:
+          SMOKE_URL: ${{ inputs.url }}
         run: |
-          if [ -n "${{ inputs.url }}" ]; then
-            echo "url=${{ inputs.url }}" >> "$GITHUB_OUTPUT"
-            echo "Using provided URL: ${{ inputs.url }}"
+          if [ -n "$SMOKE_URL" ]; then
+            echo "url=${SMOKE_URL}" >> "$GITHUB_OUTPUT"
+            echo "Using provided URL: ${SMOKE_URL}"
           else
             DISCOVERED=$(railway domain --json \
               --project "$RAILWAY_PROJECT" \
@@ -234,9 +238,11 @@ jobs:
         shell: bash
 
       - name: Wait for rollback deployment success
+        env:
+          DEPLOY_TIMEOUT: ${{ inputs.deploy-timeout }}
         run: |
           ROLLBACK_DEPLOYMENT_ID="${{ steps.rollback-deploy.outputs.rollback-deployment-id }}"
-          END_TIME=$(($(date +%s) + ${{ inputs.deploy-timeout }} * 60))
+          END_TIME=$(($(date +%s) + DEPLOY_TIMEOUT * 60))
           while [ "$(date +%s)" -lt "$END_TIME" ]; do
             STATUS=$(railway deployment list --json \
               --project "$RAILWAY_PROJECT" \
@@ -261,6 +267,6 @@ jobs:
             sleep 10
           done
 
-          echo "Rollback deployment did not reach SUCCESS within ${{ inputs.deploy-timeout }} minutes."
+          echo "Rollback deployment did not reach SUCCESS within ${DEPLOY_TIMEOUT} minutes."
           exit 1
         shell: bash
