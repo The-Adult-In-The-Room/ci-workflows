@@ -97,20 +97,19 @@ groups:
 
 ## Dependabot auto-merge fails with "Wait for check" exit code 1
 
-**Symptom:** `CI / auto-merge` fails about 60–80 seconds after the PR is opened, before `CI / verify` has had a chance to run.
+**Symptom:** `CI / auto-merge` fails about a minute after the PR is opened, before `CI / verify` has had a chance to run.
 
-**Cause:** `dependabot-auto-merge.yml` uses `lewagon/wait-on-check-action`, which has a `checks-discovery-timeout` (default 60 s). Dependabot PRs trigger the workflow before the verify workflow has created its check runs; if discovery times out, the action exits with code 1.
+**Cause:** You are pinned to v2.x, which polls for the `CI / verify` check run from PR-open time. `CI / verify` is a rollup job that only exists once the verify suite is nearly finished, so the poller's discovery timeout is racing the entire suite duration. No `checks-discovery-timeout` value fixes that.
 
-**Fix:** The reusable workflow now exposes a `checks-discovery-timeout` input (default 300 s / 5 min). Consumers pinned to a release that includes this fix will get the longer timeout automatically. If your verify workflow takes especially long to start, you can pass an explicit value:
+**Fix:** Upgrade to v3.0.0, which replaces polling with a `workflow_run` trigger: the auto-merger runs after the verify workflow completes. See the [Migration Notes](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Migration-Notes) for the v2 → v3 checklist.
 
-```yaml
-jobs:
-  auto-merge:
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v2.2.0
-    with:
-      checks-discovery-timeout: 600
-    secrets: inherit
-```
+## Dependabot PR does not merge after verify passes
+
+**Check:**
+
+- The auto-merge caller triggers on `workflow_run` of the verify workflow (`types: [completed]`), and the `workflows:` list matches the verify caller workflow's `name:` exactly. Callers still on `pull_request_target` fail with migration instructions in the run log.
+- **Allow auto-merge** is enabled in the repository settings.
+- The `CI / auto-merge` run log: it prints the source run conclusion, each candidate PR with its state and author, and why it skipped when it does.
 
 ## Still stuck?
 
