@@ -60,7 +60,7 @@ jobs:
           # pull_requests array is not populated.
           if [ -z "$numbers" ]; then
             numbers="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" \
-              --jq '.[] | select(.state == "open" and .head.sha == $ENV.HEAD_SHA) | .number')"
+              --jq ".[] | select(.state == \"open\" and .head.sha == \$ENV.HEAD_SHA) | .number")"
           fi
 
           for number in $numbers; do
