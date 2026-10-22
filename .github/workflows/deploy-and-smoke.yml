@@ -1,6 +1,6 @@
 # Reusable workflow: consumers call this via `workflow_call` from their own repos.
 # Consumer reference example:
-#   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v2.3.0
+#   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v3.0.0
 # This workflow is part of the public API. Check names, inputs, and secrets are stable.
 
 name: Deploy and Smoke
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.3.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v3.0.0
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -188,7 +188,7 @@ jobs:
   smoke:
     name: smoke
     needs: deploy
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v2.3.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v3.0.0
     with:
       command: ${{ inputs.smoke-command }}
       base-url: ${{ needs.deploy.outputs.url }}
@@ -210,7 +210,7 @@ jobs:
         with:
           ref: ${{ needs.deploy.outputs.previous-commit-hash }}
 
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v2.3.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v3.0.0
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
