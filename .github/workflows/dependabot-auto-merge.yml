@@ -2,32 +2,25 @@
 # Consumer reference example:
 #   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v2.3.0
 # This workflow is part of the public API. Check names, inputs, and secrets are stable.
+#
+# The caller must trigger on completion of the consumer's verify workflow:
+#   on:
+#     workflow_run:
+#       workflows: [<name of the verify caller workflow>]
+#       types: [completed]
+# This workflow does not poll: it runs after verify completes, merges open
+# Dependabot PRs when the run succeeded, and exits green otherwise.
 
 name: Dependabot auto-merge
 
 on:
   workflow_call:
     inputs:
-      check-name:
-        description: Name of the required check to wait for before merging.
-        required: false
-        type: string
-        default: CI / verify
       merge-method:
         description: Merge method passed to `gh pr merge`.
         required: false
         type: string
         default: squash
-      checks-discovery-timeout:
-        description: >-
-          Seconds to wait for the required check to be discovered before
-          failing. Dependabot PRs trigger this workflow before the verify
-          workflow has created its check runs, so this must be long enough
-          for the verify workflow to start (typically 60–120s). Defaults to
-          300s (5 minutes).
-        required: false
-        type: number
-        default: 300
 
 permissions:
   contents: write
@@ -36,19 +29,60 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
     steps:
-      - name: Wait for ${{ inputs.check-name }} check
-        uses: lewagon/wait-on-check-action@v1.9.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          check-name: ${{ inputs.check-name }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          checks-discovery-timeout: ${{ inputs.checks-discovery-timeout }}
+      - name: Require workflow_run trigger
+        if: github.event_name != 'workflow_run'
+        run: |
+          echo "::error::dependabot-auto-merge.yml must run after the verify workflow completes."
+          echo "::error::Update the caller to trigger on: workflow_run: { workflows: [<verify workflow name>], types: [completed] }"
+          exit 1
 
-      - run: gh pr merge --auto --"$MERGE_METHOD" "$PR_URL"
+      - name: Find the Dependabot pull request
+        id: pr
         env:
-          MERGE_METHOD: ${{ inputs.merge-method }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PULL_REQUESTS: ${{ toJSON(github.event.workflow_run.pull_requests) }}
+        run: |
+          set -euo pipefail
+
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Source workflow run concluded '$CONCLUSION'; nothing to merge."
+            echo "url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # PRs attached to the workflow_run event; empty for push-triggered runs.
+          numbers="$(jq -r '.[]?.number' <<< "$PULL_REQUESTS")"
+
+          # Fall back to an API lookup by head SHA for events where the
+          # pull_requests array is not populated.
+          if [ -z "$numbers" ]; then
+            numbers="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" \
+              --jq ".[] | select(.state == \"open\" and .head.sha == \$ENV.HEAD_SHA) | .number")"
+          fi
+
+          for number in $numbers; do
+            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number")"
+            state="$(jq -r '.state' <<< "$pr")"
+            author="$(jq -r '.user.login' <<< "$pr")"
+            echo "PR #$number: state=$state author=$author"
+            if [ "$state" = "open" ] && [ "$author" = "dependabot[bot]" ]; then
+              url="$(jq -r '.html_url' <<< "$pr")"
+              echo "url=$url" >> "$GITHUB_OUTPUT"
+              echo "Found open Dependabot PR: $url"
+              exit 0
+            fi
+          done
+
+          echo "No open Dependabot PR found for $HEAD_SHA; nothing to merge."
+          echo "url=" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_METHOD: ${{ inputs.merge-method }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        run: gh pr merge --auto --"$MERGE_METHOD" "$PR_URL"

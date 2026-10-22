@@ -39,6 +39,35 @@ jobs:
 
 ## Past migrations
 
+### v2.x → v3.0.0
+
+`dependabot-auto-merge.yml` is now event-driven: it runs when the verify workflow completes instead of polling for the `CI / verify` check run from PR-open time.
+
+- Breaking changes
+  - The caller trigger must change from `pull_request_target` to `workflow_run` on the verify caller workflow, `types: [completed]`. Callers that keep the old trigger fail loudly with migration instructions in the run log.
+  - Removed inputs `check-name` and `checks-discovery-timeout`. There is no polling left to configure.
+  - `lewagon/wait-on-check-action` is no longer used.
+  - The merge is performed by enabling auto-merge (`gh pr merge --auto`), so the repository must have **Allow auto-merge** enabled.
+- Why: `CI / verify` is a rollup job that only exists once the verify suite is nearly finished, so the v2.x poller's discovery timeout was racing the entire suite duration (see issue #60). No timeout value fixes that; the trigger had to change.
+- Consumer update checklist
+  - [ ] Enable **Allow auto-merge** in the repository settings.
+  - [ ] Change the caller trigger to:
+
+    ```yaml
+    on:
+      workflow_run:
+        workflows: [<name of your verify caller workflow>]
+        types: [completed]
+    ```
+
+  - [ ] Update the ref to `v3.0.0`.
+  - [ ] Delete any `check-name` / `checks-discovery-timeout` inputs.
+  - [ ] Confirm branch protection requires `CI / verify`.
+  - [ ] Re-run the verify workflow on an open Dependabot PR and confirm it merges once `CI / verify` is green.
+- Behavior notes
+  - Verify runs triggered by `push` to the default branch also fire the trigger; the workflow finds no open Dependabot PR and exits green without merging.
+  - A failed or cancelled verify run means no merge, by design. Re-running verify to green re-triggers the auto-merger.
+
 ### v1.x.x → v2.0.0
 
 `verify.yml` now embeds an optional Lighthouse CI job.

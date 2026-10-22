@@ -44,7 +44,7 @@ Call each reusable workflow from a job named `CI` so every project reports the s
 - `CI / regression`
 - `CI / lighthouse`
 
-Use `CI / verify` in branch protection and in the Dependabot auto-merger so the entire PR verification workflow must pass before merging. See the [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) for setup details.
+Require `CI / verify` in branch protection so the entire PR verification workflow must pass before merging. The Dependabot auto-merger is event-driven: it runs when the verify workflow completes and enables auto-merge on Dependabot PRs whose verify run succeeded. See the [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) for setup details.
 
 ## Self-check
 
