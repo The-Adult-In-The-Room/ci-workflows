@@ -39,6 +39,34 @@ jobs:
 
 ## Past migrations
 
+### v3.x → v4.0.0
+
+`deploy-and-smoke.yml` now creates a GitHub Deployment for every deploy and updates its status through the lifecycle.
+
+- Breaking change
+  - The caller **must** grant `deployments: write` and `actions: write` permissions. `deployments: write` is required to create deployments and statuses; `actions: write` is required because the smoke job uploads Playwright failure artifacts. Without them, the workflow fails with `Resource not accessible by integration`.
+- New behavior
+  - A `create-deployment` job creates a GitHub Deployment for `github.sha` in the environment named by the `environment` input (default `production`).
+  - Deployment status moves through `queued` → `in_progress` → `success` or `failure`.
+  - On success, the deployment links to the discovered or explicit `url`.
+  - If smoke tests fail and rollback succeeds, the deployment is still marked `failure` with a description that notes the rollback.
+- New check names
+  - `CI / create-deployment` (always reported)
+  - `CI / deployment-status` (always reported)
+- Consumer update checklist
+  - [ ] Update all `The-Adult-In-The-Room/ci-workflows/...` references to `v4.0.0`.
+  - [ ] Add `permissions` to the `deploy-and-smoke.yml` caller:
+
+    ```yaml
+    permissions:
+      contents: read
+      deployments: write
+      actions: write
+    ```
+
+  - [ ] Confirm branch protection still requires `CI / verify` (and optionally `CI / deploy` / `CI / smoke`).
+  - [ ] Do **not** require `CI / create-deployment` or `CI / deployment-status`.
+
 ### v2.x → v3.0.0
 
 `dependabot-auto-merge.yml` is now event-driven: it runs when the verify workflow completes instead of polling for the `CI / verify` check run from PR-open time.
