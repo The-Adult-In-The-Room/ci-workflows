@@ -49,7 +49,11 @@ function escapeRegExp(str) {
 /** Latest reachable semver tag, via `git describe`. Null if no tags exist. */
 export function getLatestTag() {
   try {
-    return execSync('git describe --tags --abbrev=0', {
+    // Only semver release tags (vX.Y.Z...) count as the latest version.
+    // The canary system maintains a lightweight `canary` tag that can be
+    // the nearest tag on main, and `git describe` would otherwise return
+    // it and fail to parse as semver.
+    return execSync('git describe --tags --abbrev=0 --match "v*"', {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim()

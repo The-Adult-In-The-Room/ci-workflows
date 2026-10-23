@@ -342,6 +342,16 @@ describe('getLatestTag (with real git)', () => {
     assert.equal(getLatestTag(), 'v1.0.1')
   })
 
+  it('ignores non-semver tags such as canary', () => {
+    writeFileSync('a', '1')
+    execSync('git add . && git commit -q -m "first"')
+    execSync('git tag v1.0.0')
+    writeFileSync('b', '2')
+    execSync('git add . && git commit -q -m "second"')
+    execSync('git tag canary')
+    assert.equal(getLatestTag(), 'v1.0.0')
+  })
+
   it('ignores an unreachable tag on another branch', () => {
     writeFileSync('a', '1')
     execSync('git add . && git commit -q -m "first"')

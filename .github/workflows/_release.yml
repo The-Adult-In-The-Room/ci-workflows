@@ -138,7 +138,7 @@ jobs:
           node scripts/release.mjs "${ARGS[@]}" --commit
 
           BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD)
-          TAG=$(git describe --tags --abbrev=0)
+          TAG=$(git describe --tags --abbrev=0 --match 'v*')
           git push origin "$BRANCH" "$TAG"
           echo "::notice::Released $TAG"
 
@@ -146,7 +146,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          TAG=$(git describe --tags --abbrev=0)
+          TAG=$(git describe --tags --abbrev=0 --match 'v*')
           gh release create "$TAG" \
             --title "Release $TAG" \
             --generate-notes \
