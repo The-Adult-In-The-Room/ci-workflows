@@ -49,8 +49,8 @@ rules:
   # Scripts that drive the canary dispatcher affect dispatch logic
   - targets: [verify, deploy]
     paths:
-      - scripts/canary-scope.mjs
-      - scripts/canary-scope.test.mjs
+      - scripts/canary-scope.ts
+      - scripts/canary-scope.test.ts
 
   # Other repo tooling (release scripts, contract checker, tests) does not
   # change the reusable workflow interface, so it does not need canary runs.

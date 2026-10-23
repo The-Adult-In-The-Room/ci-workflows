@@ -9,7 +9,7 @@
 #   - third-party actions on floating major tags and exact tags
 #   - a required input with no default, routed through `env:` into a `run:`
 #     (the shape rule 3's fix has to keep legal — see the note on rule 3 in
-#     contract-check.mjs — and rule 7 requires env routing even for required
+#     contract-check.ts — and rule 7 requires env routing even for required
 #     inputs, so the safe pattern is shown here)
 #   - a bare script name spliced after `npm run`, routed through `env:` (rule 7)
 #   - a whole command including `npm run`, spliced through `env:` (rule 7)
