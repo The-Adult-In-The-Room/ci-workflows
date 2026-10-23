@@ -1,6 +1,6 @@
 # Reusable workflow: consumers call this via `workflow_call` from their own repos.
 # Consumer reference example:
-#   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/lighthouse.yml@v3.0.0
+#   uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/lighthouse.yml@v4.0.0
 # This workflow is part of the public API. Check names, inputs, and secrets are stable.
 
 name: Lighthouse
@@ -42,7 +42,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v3.0.0
+      - uses: The-Adult-In-The-Room/ci-workflows/.github/actions/setup-node@v4.0.0
         with:
           node-version-file: ${{ inputs.node-version-file }}
 
