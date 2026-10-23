@@ -27,13 +27,13 @@ on:
 jobs:
   verify:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v2.2.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/verify.yml@v4.0.0
     secrets: inherit
     with:
       run-lighthouse: true
 ```
 
-> Replace `v2.2.0` with the latest immutable semver tag. Never pin to a branch.
+> Replace `v4.0.0` with the latest immutable semver tag. Never pin to a branch.
 
 ## Add deploy-and-smoke tests
 
@@ -46,10 +46,15 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  deployments: write
+  actions: write
+
 jobs:
   deploy:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v2.2.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/deploy-and-smoke.yml@v4.0.0
     with:
       project: ${{ vars.RAILWAY_PROJECT }}
       service: ${{ vars.RAILWAY_SERVICE }}
@@ -58,13 +63,17 @@ jobs:
       railway-token: ${{ secrets.RAILWAY_TOKEN }}
 ```
 
+> The `deployments: write` permission is required so the workflow can create a GitHub Deployment for the commit. `actions: write` is required because the smoke job uploads Playwright failure artifacts.
+
 This workflow:
 
-1. Deploys the current commit to Railway.
-2. Waits for the deployment to reach `SUCCESS`.
-3. Discovers the deployment URL (or uses the explicit `url` input).
-4. Runs `npm run test:e2e:smoke` against that URL.
-5. If smoke tests fail, redeploys the previous successful commit.
+1. Creates a GitHub Deployment for the current commit and environment.
+2. Deploys the current commit to Railway.
+3. Waits for the deployment to reach `SUCCESS`.
+4. Discovers the deployment URL (or uses the explicit `url` input).
+5. Runs `npm run test:e2e:smoke` against that URL.
+6. Updates the GitHub Deployment status to `success` or `failure` based on the result.
+7. If smoke tests fail, redeploys the previous successful commit.
 
 Set `RAILWAY_PROJECT` and `RAILWAY_SERVICE` as repository variables, and `RAILWAY_TOKEN` as a repository secret.
 
@@ -81,7 +90,7 @@ on:
 jobs:
   smoke:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v2.2.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/smoke.yml@v4.0.0
     with:
       base-url: "https://your-url.example.com"
 ```
@@ -101,7 +110,7 @@ on:
 jobs:
   regression:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/regression.yml@v2.2.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/regression.yml@v4.0.0
     with:
       base-url: ${{ vars.REGRESSION_BASE_URL }}
       base-url-required: true
@@ -128,7 +137,7 @@ permissions:
 jobs:
   auto-merge:
     name: CI
-    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v3.0.0
+    uses: The-Adult-In-The-Room/ci-workflows/.github/workflows/dependabot-auto-merge.yml@v4.0.0
 ```
 
 This is event-driven: when the verify workflow completes, it runs. If the run succeeded and the PR author is `dependabot[bot]`, it enables auto-merge on the PR, and GitHub merges it once branch protection is satisfied. There is no polling and no check-name input — a failed or cancelled verify run simply never triggers a merge, and re-running verify to green re-triggers the auto-merger.
@@ -164,7 +173,7 @@ updates:
 
 ## Branch protection
 
-Require the `CI / verify` check to pass before merging. If you use `deploy-and-smoke.yml`, you may also require `CI / deploy` and `CI / smoke`, but do **not** require `CI / rollback` — it only runs when `smoke` fails.
+Require the `CI / verify` check to pass before merging. If you use `deploy-and-smoke.yml`, you may also require `CI / deploy` and `CI / smoke`, but do **not** require `CI / rollback` — it only runs when `smoke` fails. `CI / create-deployment` and `CI / deployment-status` are always reported but do not need to be required.
 
 ## Standard check names
 
@@ -173,9 +182,11 @@ When the caller job is named `CI`, these checks are reported:
 - `CI / lint-and-test`
 - `CI / acceptance`
 - `CI / verify`
+- `CI / create-deployment` (from `deploy-and-smoke.yml`, always reported)
 - `CI / deploy` (from `deploy-and-smoke.yml`)
 - `CI / smoke` (from `smoke.yml` or `deploy-and-smoke.yml`)
 - `CI / rollback` (from `deploy-and-smoke.yml`, only on failure)
+- `CI / deployment-status` (from `deploy-and-smoke.yml`, always reported)
 - `CI / regression`
 - `CI / lighthouse`
 

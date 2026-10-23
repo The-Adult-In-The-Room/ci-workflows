@@ -58,6 +58,23 @@ The canary system uses `.github/_canary-map.yml` to determine which workflows to
 
 **Fail-safe behavior**: If a changed file doesn't match any rule, the canary runs both targets. This prevents accidentally skipping tests when someone adds a new workflow without updating the map.
 
+### Permissions
+
+The canary workflow runs reusable workflows from the consumer repo, so it must grant the permissions those workflows request.
+
+- **`canary / deploy`** calls `deploy-and-smoke.yml`, which creates GitHub Deployments and uploads smoke artifacts. The deploy job needs:
+
+  ```yaml
+  permissions:
+    contents: read
+    deployments: write
+    actions: write
+  ```
+
+- **`canary / verify`** and **`canary / lighthouse`** do not require extra permissions beyond the repository defaults.
+
+If a reusable workflow requests a permission the canary caller does not grant, the dispatch fails with `The workflow is requesting '...', but is only allowed '... none'`.
+
 ## Status Checks
 
 Every PR gets status checks for all three canary targets:

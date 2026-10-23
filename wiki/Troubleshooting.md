@@ -48,9 +48,11 @@ Update any that do not match the latest release tag.
 - `CI / lint-and-test`
 - `CI / acceptance`
 - `CI / verify`
+- `CI / create-deployment`
 - `CI / deploy`
 - `CI / smoke`
 - `CI / rollback`
+- `CI / deployment-status`
 - `CI / regression`
 - `CI / lighthouse`
 
@@ -110,6 +112,23 @@ groups:
 - The auto-merge caller triggers on `workflow_run` of the verify workflow (`types: [completed]`), and the `workflows:` list matches the verify caller workflow's `name:` exactly. Callers still on `pull_request_target` fail with migration instructions in the run log.
 - **Allow auto-merge** is enabled in the repository settings.
 - The `CI / auto-merge` run log: it prints the source run conclusion, each candidate PR with its state and author, and why it skipped when it does.
+
+## GitHub Deployment is not created
+
+**Symptom:** `CI / create-deployment` fails with `Resource not accessible by integration` or the repository's Deployments page shows nothing after a deploy.
+
+**Cause:** The caller workflow does not grant `deployments: write` (and, because the smoke job uploads failure artifacts, `actions: write`) to the reusable workflow.
+
+**Fix:** Add the required permissions to the `deploy-and-smoke.yml` caller:
+
+```yaml
+permissions:
+  contents: read
+  deployments: write
+  actions: write
+```
+
+See the [Consumer Guide](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki/Consumer-Guide) for a complete example.
 
 ## Still stuck?
 
