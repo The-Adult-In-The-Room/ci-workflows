@@ -125,7 +125,7 @@ Both must pass. The contract checker enforces rules that `actionlint` cannot see
 After rewriting, verify every internal ref equals the new tag:
 
 ```bash
-node scripts/release.mjs v1.1.0
+node scripts/release.ts v1.1.0
 ```
 
 The script will report any mismatches. If all refs match, it exits 0.

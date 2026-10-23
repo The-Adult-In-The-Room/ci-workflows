@@ -12,7 +12,7 @@ import {
   findAndRewriteSelfRefs,
   verifySelfRefs,
   getLatestTag,
-} from './release.mjs'
+} from './release.ts'
 
 // ---------- parseVersion ----------
 
@@ -128,7 +128,7 @@ describe('validateVersion', () => {
 // ---------- findAndRewriteSelfRefs ----------
 
 describe('findAndRewriteSelfRefs', () => {
-  let tmpDir
+  let tmpDir: string
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'ci-workflows-release-'))
@@ -136,13 +136,13 @@ describe('findAndRewriteSelfRefs', () => {
     mkdirSync(join(tmpDir, '.github', 'actions', 'example'), { recursive: true })
   })
 
-  const writeWorkflow = (name, content) => {
+  const writeWorkflow = (name: string, content: string): string => {
     const path = join(tmpDir, '.github', 'workflows', name)
     writeFileSync(path, content)
     return path
   }
 
-  const writeAction = (name, content) => {
+  const writeAction = (name: string, content: string): string => {
     const path = join(tmpDir, '.github', 'actions', name, 'action.yml')
     writeFileSync(path, content)
     return path
@@ -239,14 +239,14 @@ describe('findAndRewriteSelfRefs', () => {
 // ---------- verifySelfRefs ----------
 
 describe('verifySelfRefs', () => {
-  let tmpDir
+  let tmpDir: string
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'ci-workflows-verify-'))
     mkdirSync(join(tmpDir, '.github', 'workflows'), { recursive: true })
   })
 
-  const writeWorkflow = (name, content) => {
+  const writeWorkflow = (name: string, content: string): string => {
     const path = join(tmpDir, '.github', 'workflows', name)
     writeFileSync(path, content)
     return path
@@ -314,8 +314,8 @@ describe('verifySelfRefs', () => {
 // git, not the shape of `git describe`'s output.
 
 describe('getLatestTag (with real git)', () => {
-  let tmpDir
-  let originalCwd
+  let tmpDir: string
+  let originalCwd: string
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'ci-workflows-git-'))

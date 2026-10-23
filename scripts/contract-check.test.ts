@@ -4,12 +4,12 @@ import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { analyzeSource, checkPaths, checkCanaryMapCoverage } from './contract-check.mjs'
+import { analyzeSource, checkPaths, checkCanaryMapCoverage } from './contract-check.ts'
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url))
 const REPO_ROOT = fileURLToPath(new URL('../', import.meta.url))
 
-const rulesFor = (fixture) => {
+const rulesFor = (fixture: string) => {
   const source = readFileSync(join(FIXTURES, fixture), 'utf8')
   return analyzeSource(source, { file: fixture })
 }
@@ -19,7 +19,7 @@ const rulesFor = (fixture) => {
  * prove. Asserting on the exact rule set — not merely "something failed" — is
  * what stops a rule from silently widening into its neighbours.
  */
-const EXPECTED = {
+const EXPECTED: Record<string, string[]> = {
   'bug-1-relative-uses.yml': ['no-relative-uses-in-composite-action'],
   'bug-2-double-npm-run.yml': ['no-inputs-in-run-body', 'script-name-discipline'],
   'bug-3-undocumented-secret.yml': ['required-secrets-documented'],
@@ -77,7 +77,7 @@ describe('no false positives', () => {
 })
 
 describe('input resolution', () => {
-  const workflowWith = (inputs, step) =>
+  const workflowWith = (inputs: string, step: string): string =>
     `on:\n  workflow_call:\n    inputs:\n${inputs}\njobs:\n  j:\n    steps:\n      - run: ${step}\n`
 
   it('reports unparseable YAML instead of passing vacuously', () => {
@@ -133,7 +133,7 @@ describe('input resolution', () => {
 })
 
 describe('artifact names', () => {
-  const artifactWorkflow = (uses, name) =>
+  const artifactWorkflow = (uses: string, name: string): string =>
     `on:\n  workflow_call:\n    inputs:\n      command:\n        type: string\n        default: test:e2e:smoke\njobs:\n  j:\n    steps:\n      - uses: ${uses}\n        with:\n          name: ${name}\n`
 
   // The constraint belongs to the action, not the ref, so the rule must not
@@ -175,7 +175,11 @@ describe('artifact names', () => {
 describe('canary map coverage', () => {
   const tempDir = join(REPO_ROOT, 'test-canary-coverage-temp')
 
-  const setup = (workflows, actions, mapContent) => {
+  const setup = (
+    workflows: Record<string, string>,
+    actions: Record<string, string>,
+    mapContent: string | null,
+  ): (() => void) => {
     // Clean up any existing test directory
     rmSync(tempDir, { recursive: true, force: true })
 

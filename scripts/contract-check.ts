@@ -21,10 +21,10 @@
 // So: static analysis over `.github/**`, six rules, every violation reported
 // with a file and line. Deliberately not a runtime test — see issue #5.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, type Dirent } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { parseDocument } from 'yaml'
+import { parseDocument, type Document } from 'yaml'
 import { minimatch } from 'minimatch'
 
 // If you fork this repo, update this constant (and the matching Dependabot
@@ -50,18 +50,72 @@ const ARTIFACT_ACTIONS = new Set(['actions/upload-artifact', 'actions/download-a
 const EXPRESSION = /\$\{\{([\s\S]*?)\}\}/g
 const INPUT_REFERENCE = /(?<![\w.])inputs\.([A-Za-z0-9_-]+)/g
 
-const inputReferences = (expression) => [...expression.matchAll(INPUT_REFERENCE)].map(([, name]) => name)
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-const isPlainObject = (value) =>
+type PathSegment = string | number
+type Path = PathSegment[]
+
+type YamlValue = unknown
+type YamlMap = Record<string, YamlValue>
+
+interface Violation {
+  file: string
+  rule: string
+  message: string
+  line: number
+  column: number
+}
+
+interface Input {
+  name: string
+  path: Path
+  hasDefault: boolean
+  defaultValue: string | null
+  required: boolean
+  hasType: boolean
+}
+
+interface Secret {
+  name: string
+  path: Path
+  required: boolean
+  description: string
+}
+
+interface Step {
+  step: YamlMap
+  path: Path
+}
+
+interface FoundValue<T = YamlValue> {
+  value: T
+  path: Path
+}
+
+interface Position {
+  line: number
+  column: number
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const inputReferences = (expression: string): string[] =>
+  [...expression.matchAll(INPUT_REFERENCE)].map(([, name]) => name)
+
+const isPlainObject = (value: YamlValue): value is YamlMap =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /** Maps character offsets in `text` to 1-based line/column pairs. */
-function positionResolver(text) {
-  const lineStarts = [0]
+function positionResolver(text: string): (offset: number) => Position {
+  const lineStarts: number[] = [0]
   for (let i = 0; i < text.length; i++) {
     if (text[i] === '\n') lineStarts.push(i + 1)
   }
-  return (offset) => {
+  return (offset: number) => {
     let low = 0
     let high = lineStarts.length - 1
     while (low < high) {
@@ -77,12 +131,17 @@ function positionResolver(text) {
  * Depth-first search for every value stored under a given mapping key,
  * regardless of type. Filter with `isStringLeaf` when only scalars will do.
  */
-function findByKey(value, path, key, found = []) {
+function findByKey(
+  value: YamlValue,
+  path: Path,
+  key: string,
+  found: FoundValue[] = [],
+): FoundValue[] {
   if (Array.isArray(value)) {
     value.forEach((item, index) => findByKey(item, [...path, index], key, found))
   } else if (isPlainObject(value)) {
     for (const [childKey, childValue] of Object.entries(value)) {
-      const childPath = [...path, childKey]
+      const childPath: Path = [...path, childKey]
       if (childKey === key) found.push({ value: childValue, path: childPath })
       findByKey(childValue, childPath, key, found)
     }
@@ -90,10 +149,15 @@ function findByKey(value, path, key, found = []) {
   return found
 }
 
-const isStringLeaf = ({ value }) => typeof value === 'string'
+const isStringLeaf = (found: FoundValue): found is FoundValue<string> =>
+  typeof found.value === 'string'
 
 /** Every string scalar at or below `value`, with its path. */
-function findStringLeaves(value, path, found = []) {
+function findStringLeaves(
+  value: YamlValue,
+  path: Path,
+  found: FoundValue<string>[] = [],
+): FoundValue<string>[] {
   if (typeof value === 'string') {
     found.push({ value, path })
   } else if (Array.isArray(value)) {
@@ -110,9 +174,10 @@ function findStringLeaves(value, path, found = []) {
  * Gathers the input definitions a document declares. Composite actions declare
  * them at the top level; workflows declare them per trigger.
  */
-function collectInputs(root) {
-  const inputs = new Map()
-  const record = (definitions, basePath) => {
+function collectInputs(root: YamlMap): Map<string, Input> {
+  const inputs = new Map<string, Input>()
+
+  const record = (definitions: YamlValue, basePath: Path): void => {
     if (!isPlainObject(definitions)) return
     for (const [name, definition] of Object.entries(definitions)) {
       const def = isPlainObject(definition) ? definition : {}
@@ -130,18 +195,19 @@ function collectInputs(root) {
   record(root.inputs, ['inputs'])
   if (isPlainObject(root.on)) {
     for (const [triggerName, trigger] of Object.entries(root.on)) {
-      record(trigger?.inputs, ['on', triggerName, 'inputs'])
+      record(isPlainObject(trigger) ? trigger.inputs : undefined, ['on', triggerName, 'inputs'])
     }
   }
   return inputs
 }
 
-function collectSecrets(root) {
-  const secrets = []
+function collectSecrets(root: YamlMap): Secret[] {
+  const secrets: Secret[] = []
   if (!isPlainObject(root.on)) return secrets
   for (const [triggerName, trigger] of Object.entries(root.on)) {
-    if (!isPlainObject(trigger?.secrets)) continue
-    for (const [name, definition] of Object.entries(trigger.secrets)) {
+    const triggerSecrets = isPlainObject(trigger) ? trigger.secrets : undefined
+    if (!isPlainObject(triggerSecrets)) continue
+    for (const [name, definition] of Object.entries(triggerSecrets)) {
       const def = isPlainObject(definition) ? definition : {}
       secrets.push({
         name,
@@ -154,38 +220,52 @@ function collectSecrets(root) {
   return secrets
 }
 
-const describe = (input) =>
+const describe = (input: Input): string =>
   input.hasDefault ? `default ${JSON.stringify(input.defaultValue)}` : 'no default'
 
 /**
  * Every step in the document, with its path. Workflow steps hang off each job;
  * a composite action has a single `runs.steps` list instead.
  */
-function collectSteps(root) {
-  const steps = []
-  for (const [jobName, job] of Object.entries(root?.jobs ?? {})) {
-    for (const [index, step] of (Array.isArray(job?.steps) ? job.steps : []).entries()) {
+function collectSteps(root: YamlMap): Step[] {
+  const steps: Step[] = []
+  const jobs = isPlainObject(root.jobs) ? root.jobs : {}
+  for (const [jobName, job] of Object.entries(jobs)) {
+    const stepList = isPlainObject(job) && Array.isArray(job.steps) ? job.steps : []
+    for (const [index, step] of stepList.entries()) {
       if (isPlainObject(step)) steps.push({ step, path: ['jobs', jobName, 'steps', index] })
     }
   }
-  for (const [index, step] of (Array.isArray(root?.runs?.steps) ? root.runs.steps : []).entries()) {
+  const runs = isPlainObject(root.runs) ? root.runs : {}
+  const runsSteps = Array.isArray(runs.steps) ? runs.steps : []
+  for (const [index, step] of runsSteps.entries()) {
     if (isPlainObject(step)) steps.push({ step, path: ['runs', 'steps', index] })
   }
   return steps
 }
 
+function nodeStartOffset(node: YamlValue): number {
+  if (node === null || typeof node !== 'object' || Array.isArray(node)) return 0
+  const range = (node as { range?: [number, number, number] | null }).range
+  return range?.[0] ?? 0
+}
+
+// ---------------------------------------------------------------------------
+// Analysis
+// ---------------------------------------------------------------------------
+
 /**
  * Checks one YAML document. Returns a flat list of violations, each carrying
  * the rule id, message, and source position.
  */
-export function analyzeSource(text, { file = '<input>' } = {}) {
-  const doc = parseDocument(text)
+export function analyzeSource(text: string, { file = '<input>' }: { file?: string } = {}): Violation[] {
+  const doc: Document.Parsed = parseDocument(text)
   const positionAt = positionResolver(text)
-  const violations = []
+  const violations: Violation[] = []
 
-  const report = (rule, message, path) => {
+  const report = (rule: string, message: string, path: Path): void => {
     const node = doc.getIn(path, true)
-    const { line, column } = positionAt(node?.range?.[0] ?? 0)
+    const { line, column } = positionAt(nodeStartOffset(node))
     violations.push({ file, rule, message, line, column })
   }
 
@@ -209,10 +289,11 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
   }
   if (doc.errors.length > 0) return violations
 
-  const root = doc.toJS() ?? {}
+  const root = (doc.toJS() ?? {}) as YamlMap
   const inputs = collectInputs(root)
-  const isCompositeAction = root?.runs?.using === 'composite'
-  const declaresWorkflowCallInputs = isPlainObject(root?.on?.workflow_call?.inputs)
+  const isCompositeAction = isPlainObject(root.runs) && root.runs.using === 'composite'
+  const declaresWorkflowCallInputs =
+    isPlainObject(root.on) && isPlainObject(root.on.workflow_call) && isPlainObject(root.on.workflow_call.inputs)
   const usesRefs = findByKey(root, [], 'uses').filter(isStringLeaf)
   const runSteps = findByKey(root, [], 'run').filter(isStringLeaf)
 
@@ -237,7 +318,7 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
     // Rule 2 — self-references must be immutable tags or SHAs.
     if (!value.startsWith(`${SELF_REPO}/`)) continue
     const ref = value.slice(SELF_REPO.length + 1).split('@')[1]
-    if (ref === undefined || (SEMVER_TAG.test(ref) || SHA_REF.test(ref))) continue
+    if (ref === undefined || SEMVER_TAG.test(ref) || SHA_REF.test(ref)) continue
     report(
       'no-branch-refs-for-self-references',
       `self-reference \`${value}\` uses ref \`${ref}\`, which is neither an exact semver tag nor a commit SHA; branch and floating refs break every consumer pinned to the current release`,
@@ -269,14 +350,12 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
     }
   }
 
-  const consumptionSites = [
+  const consumptionSites: FoundValue<string>[] = [
     ...runSteps,
     // `with:` values are the other way an input's value gets consumed, and the
     // more dangerous one: an empty `node-version-file` reaches setup-node as an
     // empty string rather than as a visible syntax error.
-    ...findByKey(root, [], 'with').flatMap(({ value, path }) =>
-      findStringLeaves(value, path),
-    ),
+    ...findByKey(root, [], 'with').flatMap(({ value, path }) => findStringLeaves(value, path)),
   ]
 
   for (const { value, path } of consumptionSites) {
@@ -386,7 +465,8 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
     const ownerRepo = step.uses.split('@')[0]
     if (!ARTIFACT_ACTIONS.has(ownerRepo)) continue
 
-    const name = step.with?.name
+    const withBlock = isPlainObject(step.with) ? step.with : {}
+    const name = withBlock.name
     if (typeof name !== 'string') continue
 
     for (const expression of name.matchAll(EXPRESSION)) {
@@ -404,12 +484,12 @@ export function analyzeSource(text, { file = '<input>' } = {}) {
 }
 
 /** Every `.yml`/`.yaml` file under a path, recursively. */
-export function yamlFilesUnder(target) {
+export function yamlFilesUnder(target: string): string[] {
   const stats = statSync(target)
   if (stats.isFile()) return [target]
   if (!stats.isDirectory()) return []
 
-  return readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
+  return readdirSync(target, { withFileTypes: true }).flatMap((entry: Dirent) => {
     if (entry.isDirectory()) {
       return SKIP_DIRS.has(entry.name) ? [] : yamlFilesUnder(join(target, entry.name))
     }
@@ -418,13 +498,22 @@ export function yamlFilesUnder(target) {
 }
 
 /** Checks every workflow and action definition at or under the given paths. */
-export function checkPaths(paths) {
+export function checkPaths(paths: string[]): Violation[] {
   const cwd = process.cwd()
   return paths
     .flatMap((path) => yamlFilesUnder(path))
     .flatMap((path) =>
       analyzeSource(readFileSync(path, 'utf8'), { file: relative(cwd, path) || path }),
     )
+}
+
+// ---------------------------------------------------------------------------
+// Canary map coverage
+// ---------------------------------------------------------------------------
+
+interface CanaryRule {
+  targets?: string[]
+  paths?: string[]
 }
 
 /**
@@ -438,17 +527,17 @@ export function checkPaths(paths) {
  * This rule ensures that new workflows and actions are explicitly covered by
  * the selective dispatch, preventing silent gaps when the map is stale.
  */
-export function checkCanaryMapCoverage() {
-  const violations = []
+export function checkCanaryMapCoverage(): Violation[] {
+  const violations: Violation[] = []
   const cwd = process.cwd()
   const mapFile = join(cwd, '.github/_canary-map.yml')
 
   // Read the canary map
-  let mapContent
+  let mapContent: string
   try {
     mapContent = readFileSync(mapFile, 'utf8')
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if (isNodeError(error) && error.code === 'ENOENT') {
       // Map doesn't exist — skip this check
       return violations
     }
@@ -456,11 +545,11 @@ export function checkCanaryMapCoverage() {
   }
 
   const mapDoc = parseDocument(mapContent)
-  const mapData = mapDoc.toJS()
+  const mapData = mapDoc.toJS() as { rules?: CanaryRule[] } | undefined
   const rules = mapData?.rules || []
 
   // Collect all paths covered by the map
-  const coveredPaths = new Set()
+  const coveredPaths = new Set<string>()
   for (const rule of rules) {
     if (Array.isArray(rule.paths)) {
       for (const pattern of rule.paths) {
@@ -470,7 +559,7 @@ export function checkCanaryMapCoverage() {
   }
 
   // Helper to check if a file is covered by any pattern
-  const isCovered = (filePath) => {
+  const isCovered = (filePath: string): boolean => {
     for (const pattern of coveredPaths) {
       if (minimatch(filePath, pattern, { matchBase: false })) {
         return true
@@ -499,7 +588,7 @@ export function checkCanaryMapCoverage() {
       }
     }
   } catch (error) {
-    if (error.code !== 'ENOENT') throw error
+    if (isNodeError(error) && error.code !== 'ENOENT') throw error
   }
 
   // Check composite actions
@@ -510,7 +599,7 @@ export function checkCanaryMapCoverage() {
       if (!action.isDirectory()) continue
 
       const actionPath = `.github/actions/${action.name}`
-      if (!isCovered(actionPath + '/**')) {
+      if (!isCovered(`${actionPath}/**`)) {
         violations.push({
           file: actionPath,
           rule: 'canary-map-coverage',
@@ -521,19 +610,27 @@ export function checkCanaryMapCoverage() {
       }
     }
   } catch (error) {
-    if (error.code !== 'ENOENT') throw error
+    if (isNodeError(error) && error.code !== 'ENOENT') throw error
   }
 
   return violations
 }
 
-function main(argv) {
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+function main(argv: string[]): number {
   const targets = argv.length > 0 ? argv : ['.github']
-  let violations
+  let violations: Violation[]
   try {
     violations = checkPaths(targets)
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if (isNodeError(error) && error.code === 'ENOENT') {
       console.error(`contract: no such file or directory: ${error.path ?? error.message}`)
       return 2
     }
@@ -545,7 +642,7 @@ function main(argv) {
     const canaryViolations = checkCanaryMapCoverage()
     violations = violations.concat(canaryViolations)
   } catch (error) {
-    console.error(`contract: error checking canary map coverage: ${error.message}`)
+    console.error(`contract: error checking canary map coverage: ${(error as Error).message}`)
     return 2
   }
 

@@ -3,8 +3,8 @@
 // Use this for ad-hoc testing when you don't want to open a PR.
 //
 // Usage:
-//   node scripts/canary-test.mjs              # Test current HEAD
-//   node scripts/canary-test.mjs <sha|ref>    # Test specific commit
+//   node scripts/canary-test.ts              # Test current HEAD
+//   node scripts/canary-test.ts <sha|ref>    # Test specific commit
 //
 // This script:
 //   1. Deletes the existing `canary` tag (locally and remotely)
@@ -15,26 +15,26 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { computeTargets } from './canary-scope.mjs'
+import { computeTargets, type CanaryRule } from './canary-scope.ts'
 
 const REPO_OWNER = 'The-Adult-In-The-Room'
 const BLOG_REPO = 'blog'
 
-function run(cmd) {
+function run(cmd: string): void {
   try {
     execSync(cmd, { stdio: 'inherit' })
-  } catch (error) {
+  } catch {
     console.error(`Command failed: ${cmd}`)
     process.exit(1)
   }
 }
 
-function getGitToken() {
+function getGitToken(): string {
   // Try environment variable first
   if (process.env.CANARY_PAT) {
     return process.env.CANARY_PAT
   }
-  
+
   // Try to get token from git remote URL
   try {
     const remote = execSync('git remote get-url origin', { encoding: 'utf8' }).trim()
@@ -45,70 +45,70 @@ function getGitToken() {
   } catch {
     // No token in remote URL
   }
-  
+
   console.error('Error: No git token found.')
   console.error('Set CANARY_PAT environment variable or configure git remote with token.')
   process.exit(1)
 }
 
-async function dispatchToBlog(token, targets) {
+async function dispatchToBlog(token: string, targets: string[]): Promise<void> {
   const url = `https://api.github.com/repos/${REPO_OWNER}/${BLOG_REPO}/dispatches`
   const payload = JSON.stringify({
     event_type: 'canary',
     client_payload: {
       pr: 0, // Manual test, no PR
-      targets: JSON.stringify(targets)
-    }
+      targets: JSON.stringify(targets),
+    },
   })
-  
+
   console.log('\nDispatching to blog canary...')
   console.log(`Targets: ${JSON.stringify(targets)}`)
-  
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json'
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
       },
-      body: payload
+      body: payload,
     })
-    
+
     if (!response.ok) {
       const error = await response.text()
       throw new Error(`Dispatch failed: ${response.status} ${error}`)
     }
-    
+
     console.log('✓ Dispatch successful')
     console.log(`\nCheck blog Actions: https://github.com/${REPO_OWNER}/${BLOG_REPO}/actions`)
   } catch (error) {
-    console.error(`Error: ${error.message}`)
+    console.error(`Error: ${(error as Error).message}`)
     process.exit(1)
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   const target = process.argv[2] || 'HEAD'
-  
+
   console.log(`Moving canary tag to: ${target}`)
-  
+
   // Get the token
   const token = getGitToken()
-  
+
   // Resolve the target to a SHA
-  let sha
+  let sha: string
   try {
     sha = execSync(`git rev-parse ${target}`, { encoding: 'utf8' }).trim()
   } catch {
     console.error(`Error: Invalid ref: ${target}`)
     process.exit(1)
   }
-  
+
   console.log(`Resolved SHA: ${sha}`)
-  
+
   // Get list of changed files (compare to main)
-  let changedFiles = []
+  let changedFiles: string[] = []
   try {
     const diff = execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' })
     changedFiles = diff.split('\n').filter(Boolean)
@@ -116,31 +116,31 @@ async function main() {
     // If no main branch or no changes, use empty list
     console.log('Warning: Could not compute changed files, running all targets')
   }
-  
+
   // Load canary map and compute targets
-  const mapContent = readFileSync('.github/canary-map.yml', 'utf8')
-  const map = parse(mapContent)
-  const targets = computeTargets(changedFiles, map.rules)
-  
+  const mapContent = readFileSync('.github/_canary-map.yml', 'utf8')
+  const map = parse(mapContent) as { rules?: CanaryRule[] }
+  const targets = computeTargets(changedFiles, map.rules || [])
+
   console.log(`\nComputed targets: ${JSON.stringify(targets)}`)
-  
+
   if (targets.length === 0) {
     console.log('No targets to run')
     process.exit(0)
   }
-  
+
   // Delete existing canary tag
   console.log('\nDeleting existing canary tag...')
   run('git tag -d canary 2>/dev/null || true')
   run('git push origin :refs/tags/canary 2>/dev/null || true')
-  
+
   // Create new canary tag
   console.log(`Creating new canary tag on ${sha}...`)
   run(`git tag canary ${sha}`)
   run('git push origin canary')
-  
+
   console.log('✓ Canary tag updated')
-  
+
   // Dispatch to blog
   await dispatchToBlog(token, targets)
 }

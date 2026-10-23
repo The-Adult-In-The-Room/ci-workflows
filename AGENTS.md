@@ -66,7 +66,7 @@ npm test         # unit tests for the contract rules
 npm run contract # validate .github/** against the contract rules
 ```
 
-The contract checker lives in `scripts/contract-check.mjs` and enforces six rules that `actionlint` cannot see. It is a hard gate. Do not bypass it.
+The contract checker lives in `scripts/contract-check.ts` and enforces six rules that `actionlint` cannot see. It is a hard gate. Do not bypass it.
 
 ## Release process
 

@@ -27,7 +27,7 @@ PR opens in ci-workflows
     ↓
 Canary Dispatcher runs (_canary-dispatcher.yml)
     ↓
-Scripts/canary-scope.mjs analyzes changed files
+scripts/canary-scope.ts analyzes changed files
     ↓
 Determines targets (verify, lighthouse, deploy, or combinations)
     ↓
@@ -97,10 +97,10 @@ If you need to test a specific commit without opening a PR:
 
 ```bash
 # Test current HEAD
-node scripts/canary-test.mjs
+node --experimental-strip-types scripts/canary-test.ts
 
 # Test a specific commit
-node scripts/canary-test.mjs <commit-sha>
+node --experimental-strip-types scripts/canary-test.ts <commit-sha>
 ```
 
 This script:
@@ -144,14 +144,14 @@ rules:
       # ... other safe files
 ```
 
-### `scripts/canary-scope.mjs`
+### `scripts/canary-scope.ts`
 
 Computes which targets to run based on changed files. Reads the diff and `_canary-map.yml`, then outputs a JSON array of targets.
 
 ### `.github/workflows/_canary-dispatcher.yml`
 
 Orchestrates the canary system:
-1. Runs `canary-scope.mjs` to determine targets
+1. Runs `canary-scope.ts` to determine targets
 2. Posts "skipped" status for targets that won't run
 3. Moves the `canary` tag to the PR commit
 4. Dispatches to the blog repo
@@ -192,7 +192,7 @@ This shouldn't happen with the current setup. Check:
 
 ### Manual test doesn't post status checks
 
-That's expected. Manual tests use `scripts/canary-test.mjs`, which doesn't post status checks. Check the blog repo's Actions tab to see results.
+That's expected. Manual tests use `scripts/canary-test.ts`, which doesn't post status checks. Check the blog repo's Actions tab to see results.
 
 ## Related Issues
 

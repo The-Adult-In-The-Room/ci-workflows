@@ -26,10 +26,10 @@
 
 import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { inc, parse } from 'semver'
-import { checkPaths, yamlFilesUnder } from './contract-check.mjs'
+import { inc, parse, type ReleaseType, type SemVer } from 'semver'
+import { checkPaths, yamlFilesUnder } from './contract-check.ts'
 
-// Must match the constant in contract-check.mjs. If you fork this repo,
+// Must match the constant in contract-check.ts. If you fork this repo,
 // update both in lockstep or rule 2 and the release tool silently
 // disagree about which refs are "ours".
 const SELF_REPO = 'The-Adult-In-The-Room/ci-workflows'
@@ -42,12 +42,35 @@ const SELF_REF_PATTERN = new RegExp(
   'g',
 )
 
-function escapeRegExp(str) {
+function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type ValidationResult =
+  | { ok: true; value: string; current: string | null }
+  | { ok: false; error: string }
+
+interface SelfRefMismatch {
+  file: string
+  line: number
+  ref: string
+}
+
+interface VerifyResult {
+  mismatches: SelfRefMismatch[]
+  floating: SelfRefMismatch[]
+}
+
+// ---------------------------------------------------------------------------
+// Version helpers
+// ---------------------------------------------------------------------------
+
 /** Latest reachable semver tag, via `git describe`. Null if no tags exist. */
-export function getLatestTag() {
+export function getLatestTag(): string | null {
   try {
     // Only semver release tags (vX.Y.Z...) count as the latest version.
     // The canary system maintains a lightweight `canary` tag that can be
@@ -63,7 +86,7 @@ export function getLatestTag() {
 }
 
 /** Parse a version string with or without the `v` prefix. */
-export function parseVersion(version) {
+export function parseVersion(version: string): SemVer | null {
   return parse(version.startsWith('v') ? version.slice(1) : version)
 }
 
@@ -72,8 +95,12 @@ export function parseVersion(version) {
  * so `premajor`/`preminor`/`prepatch`/`prerelease` all work and the
  * optional `preid` argument names the prerelease lane (`beta`, `rc`, …).
  */
-export function computeBump(current, bump, preid) {
-  return inc(current, bump, preid)
+export function computeBump(
+  current: string | SemVer,
+  bump: ReleaseType,
+  preid?: string,
+): string | null {
+  return preid ? inc(current, bump, preid) : inc(current, bump)
 }
 
 /**
@@ -83,7 +110,7 @@ export function computeBump(current, bump, preid) {
  * second-guess *how major* the bump should be — that is a human call,
  * informed by the diff and by consumer impact.
  */
-export function validateVersion(proposed, current) {
+export function validateVersion(proposed: string, current: string | null): ValidationResult {
   const next = parseVersion(proposed)
   if (!next) {
     return { ok: false, error: `\`${proposed}\` is not a valid semver version` }
@@ -104,6 +131,10 @@ export function validateVersion(proposed, current) {
   return { ok: true, value: `v${next.version}`, current: `v${prev.version}` }
 }
 
+// ---------------------------------------------------------------------------
+// Ref rewriting and verification
+// ---------------------------------------------------------------------------
+
 /**
  * Rewrite every `SELF_REPO/...@<semver>` ref under `target` (a file, or
  * a directory recursed via `yamlFilesUnder`) to `newTag`. Returns the
@@ -114,8 +145,8 @@ export function validateVersion(proposed, current) {
  * from one semver tag to another has no opinion about which commit a
  * deliberate SHA pin points at.
  */
-export function findAndRewriteSelfRefs(target, newTag) {
-  const changed = []
+export function findAndRewriteSelfRefs(target: string, newTag: string): string[] {
+  const changed: string[] = []
   for (const file of yamlFilesUnder(target)) {
     const original = readFileSync(file, 'utf8')
     const updated = original.replace(SELF_REF_PATTERN, `$1@${newTag}`)
@@ -133,9 +164,9 @@ export function findAndRewriteSelfRefs(target, newTag) {
  * missed file, a floating ref — is reported. An empty `mismatches` means
  * the tag and the refs agree, which is exactly what consumers depend on.
  */
-export function verifySelfRefs(target, expectedTag) {
-  const mismatches = []
-  const floating = []
+export function verifySelfRefs(target: string, expectedTag: string): VerifyResult {
+  const mismatches: SelfRefMismatch[] = []
+  const floating: SelfRefMismatch[] = []
   for (const file of yamlFilesUnder(target)) {
     const content = readFileSync(file, 'utf8')
     const lines = content.split('\n')
@@ -156,9 +187,13 @@ export function verifySelfRefs(target, expectedTag) {
   return { mismatches, floating }
 }
 
-function printUsage() {
+// ---------------------------------------------------------------------------
+// CLI
+// ---------------------------------------------------------------------------
+
+function printUsage(): void {
   console.error(`Usage:
-  node scripts/release.mjs <version|bump> [options]
+  node scripts/release.ts <version|bump> [options]
 
 Arguments:
   <version>            Explicit semver version (e.g. v2.3.0, 2.3.0, v2.3.0-beta.1)
@@ -175,7 +210,7 @@ Options:
 `)
 }
 
-async function main(argv) {
+async function main(argv: string[]): Promise<number> {
   if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h') {
     printUsage()
     return argv[0] === '--help' || argv[0] === '-h' ? 0 : 1
@@ -183,11 +218,11 @@ async function main(argv) {
 
   const raw = argv[0]
   const rest = argv.slice(1)
-  const flag = (name) => {
+  const flag = (name: string): string | undefined => {
     const idx = rest.indexOf(name)
     return idx !== -1 && idx < rest.length - 1 ? rest[idx + 1] : undefined
   }
-  const hasFlag = (name) => rest.includes(name)
+  const hasFlag = (name: string): boolean => rest.includes(name)
 
   const preid = flag('--preid')
   const shouldCommit = hasFlag('--commit') || hasFlag('--push')
@@ -198,14 +233,19 @@ async function main(argv) {
   const latestTag = getLatestTag()
   const currentVersion = latestTag ?? null
 
-  let proposed
+  let proposed: string
   if (/^(major|minor|patch|premajor|preminor|prepatch|prerelease)$/.test(raw)) {
     if (!currentVersion) {
       console.error('release: no existing tag found; pass an explicit version for the first release')
       return 1
     }
     const currentParsed = parseVersion(currentVersion)
-    const next = inc(currentParsed, raw, preid)
+    if (!currentParsed) {
+      console.error(`release: current tag ${currentVersion} is not valid semver`)
+      return 1
+    }
+    const bump = raw as ReleaseType
+    const next = preid ? inc(currentParsed, bump, preid) : inc(currentParsed, bump)
     if (!next) {
       console.error(`release: could not compute ${raw} bump from ${currentVersion}`)
       return 1
@@ -286,9 +326,12 @@ async function main(argv) {
   // --push: local CLI convenience. Push with whatever remote URL is already
   // configured. This works for local development where the user's git
   // credentials have the necessary permissions.
-  let branch
+  let branch: string
   try {
-    branch = execSync('git symbolic-ref --short HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+    branch = execSync('git symbolic-ref --short HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
   } catch {
     branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim()
   }
@@ -299,13 +342,12 @@ async function main(argv) {
 }
 
 const isMain =
-  process.argv[1] &&
-  import.meta.url === new URL(process.argv[1], 'file:').href
+  process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href
 
 if (isMain) {
   main(process.argv.slice(2)).then(
     (code) => process.exit(code),
-    (error) => {
+    (error: unknown) => {
       console.error(error)
       process.exit(1)
     },

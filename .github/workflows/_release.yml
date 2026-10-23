@@ -99,7 +99,7 @@ jobs:
           fi
           # Run without --push first so we can inspect the diff and the
           # verification output before committing anything.
-          node scripts/release.mjs "${ARGS[@]}"
+          node scripts/release.ts "${ARGS[@]}"
 
       - name: Configure git identity and remote
         env:
@@ -135,7 +135,7 @@ jobs:
 
           # --commit: stage, commit, and tag — but do not push. The workflow
           # pushes below with the PAT-authenticated remote.
-          node scripts/release.mjs "${ARGS[@]}" --commit
+          node scripts/release.ts "${ARGS[@]}" --commit
 
           BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD)
           TAG=$(git describe --tags --abbrev=0 --match 'v*')

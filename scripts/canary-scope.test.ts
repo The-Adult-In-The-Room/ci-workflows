@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Unit tests for scripts/canary-scope.mjs
+// Unit tests for scripts/canary-scope.ts
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { computeTargets } from './canary-scope.mjs'
+import { computeTargets, type CanaryRule } from './canary-scope.ts'
 
 // Sample rules matching .github/_canary-map.yml
-const SAMPLE_RULES = [
+const SAMPLE_RULES: CanaryRule[] = [
   {
     targets: ['verify'],
     paths: ['.github/workflows/verify.yml'],
@@ -128,7 +128,7 @@ describe('computeTargets', () => {
 
   describe('empty input', () => {
     it('returns empty array when no paths are provided', () => {
-      const paths = []
+      const paths: string[] = []
       const targets = computeTargets(paths, SAMPLE_RULES)
       assert.deepStrictEqual(targets, [])
     })
@@ -150,7 +150,7 @@ describe('computeTargets', () => {
 
   describe('invalid rules', () => {
     it('throws when a rule is missing targets array', () => {
-      const invalidRules = [{ paths: ['.github/workflows/verify.yml'] }]
+      const invalidRules = [{ paths: ['.github/workflows/verify.yml'] }] as CanaryRule[]
       const paths = ['.github/workflows/verify.yml']
       assert.throws(() => {
         computeTargets(paths, invalidRules)
@@ -158,7 +158,7 @@ describe('computeTargets', () => {
     })
 
     it('throws when a rule is missing paths array', () => {
-      const invalidRules = [{ targets: ['verify'] }]
+      const invalidRules = [{ targets: ['verify'] }] as CanaryRule[]
       const paths = ['.github/workflows/verify.yml']
       assert.throws(() => {
         computeTargets(paths, invalidRules)

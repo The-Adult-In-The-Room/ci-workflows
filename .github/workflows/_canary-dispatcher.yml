@@ -44,7 +44,7 @@ jobs:
           printf '%s\n' "${CHANGED_FILES[@]}"
           
           # Compute targets
-          TARGETS=$(node scripts/canary-scope.mjs "${CHANGED_FILES[@]}")
+          TARGETS=$(node scripts/canary-scope.ts "${CHANGED_FILES[@]}")
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           echo "Computed targets: $TARGETS"
 
