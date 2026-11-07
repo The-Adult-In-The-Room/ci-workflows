@@ -37,6 +37,19 @@ Update any that do not match the latest release tag.
 - An artifact name interpolates a raw input
 - Internal refs point to a branch instead of a tag
 
+## Lint check fails
+
+**Symptom:** `npm run lint` reports shellcheck or workflow errors.
+
+**Common causes:**
+
+- Shell variable in a single-quoted jq filter (SC2016). Use double quotes and escape the `$`.
+- Invalid GitHub Actions expression syntax.
+- A workflow input is used without a declared `type`.
+- Shellcheck findings in `run:` scripts.
+
+**Fix:** Read the diagnostic and fix the underlying script or workflow. `npm run lint` uses the same actionlint and shellcheck versions as `Self Check`, so a clean local run should pass in CI too.
+
 ## Branch protection shows missing checks
 
 **Symptom:** PRs cannot merge because required status checks are stuck.
