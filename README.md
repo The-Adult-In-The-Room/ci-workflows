@@ -50,18 +50,20 @@ Require `CI / verify` in branch protection so the entire PR verification workflo
 
 ## Self-check
 
-This repository gates its own changes with `Self Check` (`.github/workflows/_self-check.yml`), which runs two independently-required jobs:
+This repository gates its own changes with `Self Check` (`.github/workflows/_self-check.yml`), which runs two independently-required jobs. You can run the same checks locally:
 
-| Check | What it enforces |
-| --- | --- |
-| `lint` | `actionlint` validates workflows; `mpalmer/action-validator` validates composite `action.yml` files against the GitHub Actions schema. |
-| `contract` | `scripts/contract-check.ts` — the *interface* to consumers holds up. |
+| Check | Local command | What it enforces |
+| --- | --- | --- |
+| `lint` | `npm run lint` | `actionlint` validates workflows; `mpalmer/action-validator` validates composite `action.yml` files against the GitHub Actions schema. |
+| `contract` | `npm test` and `npm run contract` | `scripts/contract-check.ts` — the *interface* to consumers holds up. |
+
+`npm run lint` reads the pinned `rhysd/actionlint` version from `_self-check.yml`, then downloads the matching actionlint (and shellcheck) release for your OS/arch into `.cache/actionlint/`. This keeps local feedback identical to CI without requiring either linter to be installed globally.
 
 `actionlint` is a workflow linter and, in project mode, collects only `.github/workflows/*.yml`, so composite actions used to receive no structural validation at all. `mpalmer/action-validator` closes that gap. Neither tool can see the interface bugs that actually cost us consumers — a composite action referencing a sibling by relative path, `npm run ${{ inputs.command }}` where the default was a whole command, a required secret with no description, an artifact name interpolated from an input where the `:` in `test:e2e:regression` is an invalid artifact-name character. `contract` covers those six rules.
 
 The check names `lint` and `contract` are stable and will not be reworded. Once a ruleset requires a check by name, renaming a job breaks every open PR and every branch-protection entry. Treat any change here as a breaking change.
 
-Run either locally with `npm test` and `npm run contract`; `contract` also accepts explicit paths, e.g. `node scripts/contract-check.ts .github/workflows/verify.yml`.
+Run the checks locally with `npm run lint`, `npm test`, and `npm run contract`; `contract` also accepts explicit paths, e.g. `node scripts/contract-check.ts .github/workflows/verify.yml`.
 
 The rules are unit-tested against deliberately broken fixtures in `scripts/fixtures/`, one per historical bug. `npm test` also asserts that the real workflows satisfy every rule, so a rule that becomes too aggressive fails here rather than in someone's PR.
 
