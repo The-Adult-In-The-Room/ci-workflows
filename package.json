@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"contract": "node scripts/contract-check.ts",
-		"lint": "node scripts/lint-workflows.mjs",
+		"lint": "node scripts/lint-workflows.ts",
 		"release": "node scripts/release.ts",
 		"test": "node --test \"scripts/**/*.test.ts\"",
 		"typecheck": "tsc --noEmit"

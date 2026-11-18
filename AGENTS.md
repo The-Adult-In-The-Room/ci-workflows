@@ -68,6 +68,14 @@ npm run contract # validate .github/** against the contract rules
 
 The contract checker lives in `scripts/contract-check.ts` and enforces six rules that `actionlint` cannot see. It is a hard gate. Do not bypass it.
 
+## Scripts
+
+All tooling in `scripts/` is TypeScript, executed directly by Node's native type stripping (`node scripts/foo.ts`). Never create `.js`/`.mjs` scripts here — there is no build step and none is wanted. New scripts must follow the conventions of the existing ones:
+
+- Strict TypeScript per `tsconfig.json`; `npm run typecheck` must pass.
+- Pure logic lives in exported functions, covered by a colocated `foo.test.ts` run with `node --test` (`npm test`). Only I/O and orchestration stay unexported.
+- A main guard (`import.meta.url === pathToFileURL(resolve(process.argv[1])).href`) keeps imports side-effect free so tests can import the module.
+
 ## Release process
 
 When cutting a release:
