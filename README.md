@@ -1,5 +1,7 @@
 # ci-workflows
 
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/The-Adult-In-The-Room/badge.svg)](https://hub.xerj.org/contributors/The-Adult-In-The-Room)
+
 Reusable GitHub workflows and composite actions shared across personal projects.
 
 For detailed guides, see the **[wiki](https://github.com/The-Adult-In-The-Room/ci-workflows/wiki)**. The wiki source lives in the `wiki/` directory of this repo and is auto-published to GitHub on every push to `main`:
